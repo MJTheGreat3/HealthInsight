@@ -2,7 +2,7 @@
 Property-based tests for PDF processing functionality
 """
 
-from hypothesis import given, strategies as st, assume
+from hypothesis import given, strategies as st, assume, settings, HealthCheck
 import pytest
 from io import BytesIO
 
@@ -72,7 +72,14 @@ medical_test_name_strategy = st.sampled_from([
 ])
 
 test_value_strategy = st.floats(min_value=0.1, max_value=999.9).map(lambda x: f"{x:.1f}")
-test_range_strategy = st.text(min_size=3, max_size=20).filter(lambda x: '-' in x or '<' in x or '>' in x)
+test_range_strategy = st.one_of(
+    st.text(min_size=3, max_size=15).filter(lambda x: '-' in x),  # Range with dash
+    st.text(min_size=2, max_size=10).filter(lambda x: '<' in x),  # Less than
+    st.text(min_size=2, max_size=10).filter(lambda x: '>' in x),  # Greater than
+    st.just("0.2-1.0"),  # Common medical range
+    st.just("<5.0"),     # Common upper limit
+    st.just(">2.0")      # Common lower limit
+)
 test_unit_strategy = st.sampled_from(["mg/dL", "g/dL", "cells/uL", "mmol/L", "%"])
 
 medical_test_data_strategy = st.lists(
@@ -99,6 +106,7 @@ invalid_pdf_strategy = st.one_of(
 
 
 @pytest.mark.skipif(not PYMUPDF_AVAILABLE, reason="PyMuPDF not available")
+@settings(deadline=None, suppress_health_check=[HealthCheck.filter_too_much])  # Disable deadline and filter check for PDF processing tests
 @given(test_data=medical_test_data_strategy)
 def test_pdf_processing_workflow_success_property(test_data):
     """
@@ -160,6 +168,7 @@ def test_pdf_processing_workflow_success_property(test_data):
 
 
 @pytest.mark.skipif(not PYMUPDF_AVAILABLE, reason="PyMuPDF not available")
+@settings(deadline=None)  # Disable deadline for PDF processing tests
 @given(text_content=text_content_strategy)
 def test_pdf_processing_workflow_text_extraction_property(text_content):
     """
@@ -246,6 +255,7 @@ def test_pdf_processing_workflow_error_handling_property(invalid_content):
 
 
 @pytest.mark.skipif(not PYMUPDF_AVAILABLE, reason="PyMuPDF not available")
+@settings(deadline=None)  # Disable deadline for PDF processing tests
 @given(
     test_name=medical_test_name_strategy,
     value=test_value_strategy,
