@@ -1,13 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import {
-  useRealtimeData,
-  useRealtimeReports,
-  useRealtimeMetrics,
-} from "../hooks/useRealtimeData";
 import { Patient, Report, MetricData } from "../types";
-import ConnectionStatus from "./ConnectionStatus";
+import PatientTable from "./PatientTable";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -43,89 +38,64 @@ interface MetricTrend {
   }>;
 }
 
-const PatientDashboard: React.FC = () => {
-  const [patient, setPatient] = useState<Patient | null>(null);
-  const [reports, setReports] = useState<Report[]>([]);
+const HospitalDashboard: React.FC = () => {
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [patientReports, setPatientReports] = useState<Report[]>([]);
   const [metricTrends, setMetricTrends] = useState<MetricTrend[]>([]);
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { patientId } = useParams();
   const { appUser, currentUser } = useAuth();
 
-  // Real-time data hooks
-  const { notify } = useRealtimeData();
-
-  useRealtimeReports((update) => {
-    console.log("Report update received:", update);
-    if (
-      update.type === "report_uploaded" ||
-      update.type === "analysis_completed"
-    ) {
-      // Refresh dashboard data when new reports are processed
-      fetchDashboardData();
-      notify({
-        type: "success",
-        title: "Dashboard Updated",
-        message: "Your dashboard has been updated with new report data.",
-      });
-    }
-  });
-
-  useRealtimeMetrics((update) => {
-    console.log("Metrics update received:", update);
-    if (
-      update.type === "tracked_metrics_changed" ||
-      update.type === "dashboard_updated"
-    ) {
-      // Refresh dashboard data when metrics are updated
-      fetchDashboardData();
-    }
-  });
-
   useEffect(() => {
-    if (appUser) {
-      fetchDashboardData();
+    if (patientId) {
+      fetchPatientData(patientId);
     }
-  }, [appUser]);
+  }, [patientId]);
 
-  const fetchDashboardData = async () => {
-    if (!appUser) return;
+  const fetchPatientData = async (uid: string) => {
+    if (!currentUser) return;
 
     try {
       setLoading(true);
+      setError(null);
+
+      const token = await currentUser.getIdToken();
 
       // Fetch patient profile and reports in parallel
-      const token = await currentUser!.getIdToken();
-      const [profileResponse, reportsResponse] = await Promise.all([
-        fetch("/api/v1/patients/profile", {
+      const [patientResponse, reportsResponse] = await Promise.all([
+        fetch(`/api/v1/hospitals/patients/${uid}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         }),
-        fetch("/api/v1/reports", {
+        fetch(`/api/v1/hospitals/patients/${uid}/reports`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         }),
       ]);
 
-      if (!profileResponse.ok || !reportsResponse.ok) {
-        throw new Error("Failed to fetch dashboard data");
+      if (!patientResponse.ok || !reportsResponse.ok) {
+        throw new Error("Failed to fetch patient data");
       }
 
-      const [profileData, reportsData] = await Promise.all([
-        profileResponse.json(),
+      const [patientData, reportsData] = await Promise.all([
+        patientResponse.json(),
         reportsResponse.json(),
       ]);
 
-      setPatient(profileData);
-      setReports(reportsData);
+      setSelectedPatient(patientData);
+      setPatientReports(reportsData);
 
       // Process metric trends
-      processMetricTrends(reportsData, profileData.favorites || []);
+      processMetricTrends(reportsData, patientData.favorites || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load dashboard");
+      setError(
+        err instanceof Error ? err.message : "Failed to load patient data"
+      );
     } finally {
       setLoading(false);
     }
@@ -138,8 +108,9 @@ const PatientDashboard: React.FC = () => {
     reports.forEach((report) => {
       Object.entries(report.attributes).forEach(
         ([key, metric]: [string, MetricData]) => {
-          // Only process metrics that are in favorites
-          if (!favorites.includes(key) || !metric.value || !metric.unit) return;
+          // Only process metrics that are in favorites or all if no favorites
+          if (favorites.length > 0 && !favorites.includes(key)) return;
+          if (!metric.value || !metric.unit) return;
 
           const numericValue = parseFloat(metric.value);
           if (isNaN(numericValue)) return;
@@ -172,6 +143,10 @@ const PatientDashboard: React.FC = () => {
     if (!selectedMetric && Object.keys(trends).length > 0) {
       setSelectedMetric(Object.keys(trends)[0]);
     }
+  };
+
+  const handlePatientSelect = (patient: Patient) => {
+    navigate(`/hospital/patient/${patient.uid}`);
   };
 
   const getChartData = (trend: MetricTrend) => {
@@ -261,20 +236,69 @@ const PatientDashboard: React.FC = () => {
   };
 
   const getRecentAbnormalResults = () => {
-    if (reports.length === 0) return [];
+    if (patientReports.length === 0) return [];
 
-    const latestReport = reports[0]; // Assuming reports are sorted by date
+    const latestReport = patientReports[0]; // Assuming reports are sorted by date
     return Object.entries(latestReport.attributes)
       .filter(([_, metric]) => metric.verdict && metric.verdict !== "NORMAL")
       .slice(0, 5); // Show top 5 abnormal results
   };
 
+  const handleLogout = async () => {
+    try {
+      const { logout } = useAuth();
+      await logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
+  // Show patient table if no specific patient is selected
+  if (!patientId) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <header className="bg-white shadow">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-6">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">
+                  Hospital Dashboard
+                </h1>
+                <p className="text-gray-600">
+                  Welcome, {appUser?.name || "Hospital User"}
+                </p>
+              </div>
+              <div className="flex items-center space-x-4">
+                <span className="px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded-full">
+                  {appUser?.userType}
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="px-4 py-6 sm:px-0">
+            <PatientTable onPatientSelect={handlePatientSelect} />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Show individual patient dashboard
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your dashboard...</p>
+          <p className="text-gray-600">Loading patient data...</p>
         </div>
       </div>
     );
@@ -300,15 +324,23 @@ const PatientDashboard: React.FC = () => {
             </svg>
           </div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            Unable to Load Dashboard
+            Unable to Load Patient Data
           </h2>
           <p className="text-gray-600 mb-4">{error}</p>
-          <button
-            onClick={fetchDashboardData}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            Try Again
-          </button>
+          <div className="space-x-4">
+            <button
+              onClick={() => fetchPatientData(patientId!)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => navigate("/hospital")}
+              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+            >
+              Back to Patient List
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -320,27 +352,43 @@ const PatientDashboard: React.FC = () => {
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                Health Dashboard
-              </h1>
-              <p className="text-gray-600">
-                Welcome back, {patient?.name || "Patient"}
-              </p>
-            </div>
-            <div className="flex space-x-3">
-              <ConnectionStatus />
+            <div className="flex items-center space-x-4">
               <button
-                onClick={() => navigate("/patient/upload")}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                onClick={() => navigate("/hospital")}
+                className="text-gray-500 hover:text-gray-700"
               >
-                Upload Report
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
               </button>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">
+                  Patient Dashboard
+                </h1>
+                <p className="text-gray-600">
+                  {selectedPatient?.name || "Patient"} - Medical Overview
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span className="px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded-full">
+                Hospital View
+              </span>
               <button
-                onClick={() => navigate("/patient/profile")}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                onClick={handleLogout}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
               >
-                Profile
+                Logout
               </button>
             </div>
           </div>
@@ -349,6 +397,46 @@ const PatientDashboard: React.FC = () => {
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
+          {/* Patient Info Summary */}
+          <div className="bg-white shadow rounded-lg mb-8">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Patient Information
+              </h2>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">
+                    Patient Name
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedPatient?.name || "Not provided"}
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">
+                    Patient ID
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedPatient?.uid.substring(0, 12)}...
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">
+                    Bio Data
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedPatient?.bioData &&
+                    Object.keys(selectedPatient.bioData).length > 0
+                      ? `${Object.keys(selectedPatient.bioData).length} fields`
+                      : "Not provided"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div className="bg-white overflow-hidden shadow rounded-lg">
@@ -375,7 +463,7 @@ const PatientDashboard: React.FC = () => {
                         Total Reports
                       </dt>
                       <dd className="text-lg font-medium text-gray-900">
-                        {reports.length}
+                        {patientReports.length}
                       </dd>
                     </dl>
                   </div>
@@ -407,7 +495,7 @@ const PatientDashboard: React.FC = () => {
                         Tracked Metrics
                       </dt>
                       <dd className="text-lg font-medium text-gray-900">
-                        {patient?.favorites?.length || 0}
+                        {selectedPatient?.favorites?.length || 0}
                       </dd>
                     </dl>
                   </div>
@@ -471,9 +559,9 @@ const PatientDashboard: React.FC = () => {
                         Last Report
                       </dt>
                       <dd className="text-lg font-medium text-gray-900">
-                        {reports.length > 0
+                        {patientReports.length > 0
                           ? new Date(
-                              reports[0].processedAt
+                              patientReports[0].processedAt
                             ).toLocaleDateString()
                           : "None"}
                       </dd>
@@ -537,18 +625,12 @@ const PatientDashboard: React.FC = () => {
                         </svg>
                       </div>
                       <h3 className="text-lg font-medium text-gray-900 mb-2">
-                        No Tracked Metrics
+                        No Metric Data Available
                       </h3>
-                      <p className="text-gray-500 mb-4">
-                        Upload reports and select concerning results to see
-                        trends here.
+                      <p className="text-gray-500">
+                        This patient has no tracked metrics or report data to
+                        display.
                       </p>
-                      <button
-                        onClick={() => navigate("/patient/upload")}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                      >
-                        Upload First Report
-                      </button>
                     </div>
                   )}
                 </div>
@@ -604,43 +686,26 @@ const PatientDashboard: React.FC = () => {
                         </svg>
                       </div>
                       <p className="text-sm text-gray-500">
-                        No abnormal results in your latest report
+                        No abnormal results in latest report
                       </p>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Quick Actions */}
+              {/* Patient Actions */}
               <div className="bg-white shadow rounded-lg">
                 <div className="px-6 py-4 border-b border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-900">
-                    Quick Actions
+                    Patient Actions
                   </h3>
                 </div>
                 <div className="p-6 space-y-3">
                   <button
-                    onClick={() => navigate("/patient/upload")}
+                    onClick={() =>
+                      navigate(`/hospital/patient/${patientId}/reports`)
+                    }
                     className="w-full flex items-center px-4 py-3 text-sm font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100"
-                  >
-                    <svg
-                      className="w-5 h-5 mr-3"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                      />
-                    </svg>
-                    Upload New Report
-                  </button>
-                  <button
-                    onClick={() => navigate("/patient/history")}
-                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100"
                   >
                     <svg
                       className="w-5 h-5 mr-3"
@@ -655,10 +720,12 @@ const PatientDashboard: React.FC = () => {
                         d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                       />
                     </svg>
-                    View Report History
+                    View All Reports
                   </button>
                   <button
-                    onClick={() => navigate("/patient/profile")}
+                    onClick={() =>
+                      navigate(`/hospital/patient/${patientId}/profile`)
+                    }
                     className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100"
                   >
                     <svg
@@ -674,7 +741,26 @@ const PatientDashboard: React.FC = () => {
                         d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                       />
                     </svg>
-                    Update Profile
+                    View Profile Details
+                  </button>
+                  <button
+                    onClick={() => navigate("/hospital")}
+                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100"
+                  >
+                    <svg
+                      className="w-5 h-5 mr-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 19l-7-7 7-7"
+                      />
+                    </svg>
+                    Back to Patient List
                   </button>
                 </div>
               </div>
@@ -686,4 +772,4 @@ const PatientDashboard: React.FC = () => {
   );
 };
 
-export default PatientDashboard;
+export default HospitalDashboard;

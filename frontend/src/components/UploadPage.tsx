@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { useRealtimeData } from "../hooks/useRealtimeData";
 
 interface UploadProgress {
   progress: number;
@@ -18,6 +19,7 @@ const UploadPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { appUser, currentUser } = useAuth();
+  const { notify } = useRealtimeData();
 
   const handleFileSelect = (file: File) => {
     if (file.type !== "application/pdf") {
@@ -114,6 +116,14 @@ const UploadPage: React.FC = () => {
       // Simulate processing time
       setTimeout(() => {
         setUploadProgress({ progress: 100, status: "success" });
+
+        // Notify about successful upload
+        notify({
+          type: "success",
+          title: "Report Uploaded Successfully",
+          message: "Your medical report has been processed and analyzed.",
+        });
+
         // Navigate to results page with report ID
         navigate(`/patient/results/${result.report_id}`);
       }, 2000);

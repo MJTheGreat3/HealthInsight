@@ -18,6 +18,7 @@ interface AuthContextType {
   register: (email: string, password: string) => Promise<UserCredential>;
   logout: () => Promise<void>;
   loading: boolean;
+  getIdToken: () => Promise<string | null>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -44,6 +45,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     setAppUser(null);
     return signOut(auth);
+  };
+
+  const getIdToken = async (): Promise<string | null> => {
+    if (currentUser) {
+      try {
+        return await currentUser.getIdToken();
+      } catch (error) {
+        console.error("Error getting ID token:", error);
+        return null;
+      }
+    }
+    return null;
   };
 
   // Fetch user profile from backend when Firebase user changes
@@ -94,6 +107,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     register,
     logout,
     loading,
+    getIdToken,
   };
 
   return (

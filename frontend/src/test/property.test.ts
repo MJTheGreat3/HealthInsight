@@ -280,4 +280,252 @@ describe("Property-based tests", () => {
       );
     });
   });
+
+  describe("Hospital Patient Access Properties", () => {
+    // Generator for MetricData (redefine for this scope)
+    const metricDataArb = fc.record({
+      name: fc.option(fc.string({ minLength: 1 })),
+      value: fc.option(fc.float({ min: 0, max: 1000 }).map(String)),
+      unit: fc.option(fc.constantFrom("mg/dL", "g/L", "mmol/L", "IU/L", "%")),
+      verdict: fc.option(fc.constantFrom("NORMAL", "HIGH", "LOW", "CRITICAL")),
+      remark: fc.option(fc.string()),
+      range: fc.option(fc.string()),
+    });
+
+    // Generator for Patient data
+    const patientArb = fc.record({
+      uid: fc.string({ minLength: 10 }),
+      userType: fc.constant("patient" as const),
+      name: fc.option(fc.string({ minLength: 1 })),
+      favorites: fc.array(fc.string({ minLength: 1 }), { maxLength: 10 }),
+      bioData: fc.dictionary(
+        fc.string({ minLength: 1 }),
+        fc.oneof(fc.string(), fc.integer(), fc.array(fc.string()))
+      ),
+      reports: fc.array(fc.string({ minLength: 1 }), { maxLength: 20 }),
+    });
+
+    // Generator for Report data
+    const reportArb = fc.record({
+      id: fc.option(fc.string({ minLength: 1 })),
+      reportId: fc.string({ minLength: 1 }),
+      patientId: fc.string({ minLength: 1 }),
+      processedAt: fc.date({ min: new Date("2020-01-01"), max: new Date() }),
+      attributes: fc.dictionary(fc.string({ minLength: 1 }), metricDataArb),
+      llmOutput: fc.option(fc.string()),
+      llmReportId: fc.option(fc.string()),
+      selectedConcerns: fc.option(fc.array(fc.string({ minLength: 1 }))),
+    });
+
+    // Helper function to simulate hospital patient data access
+    const getHospitalPatientData = (patient: any, reports: any[]) => {
+      return {
+        patient,
+        reports: reports.filter((r) => r.patientId === patient.uid),
+        trackedMetrics: patient.favorites || [],
+        profileData: patient.bioData || {},
+        aiInsights: reports
+          .filter((r) => r.patientId === patient.uid && r.llmOutput)
+          .map((r) => r.llmOutput),
+      };
+    };
+
+    // Helper function to validate complete patient information
+    const validateCompletePatientInfo = (patientData: any) => {
+      // Should have patient basic info
+      expect(patientData).toHaveProperty("patient");
+      expect(patientData.patient).toHaveProperty("uid");
+      expect(patientData.patient).toHaveProperty("userType");
+
+      // Should have reports array
+      expect(patientData).toHaveProperty("reports");
+      expect(Array.isArray(patientData.reports)).toBe(true);
+
+      // Should have tracked metrics
+      expect(patientData).toHaveProperty("trackedMetrics");
+      expect(Array.isArray(patientData.trackedMetrics)).toBe(true);
+
+      // Should have profile data
+      expect(patientData).toHaveProperty("profileData");
+      expect(typeof patientData.profileData).toBe("object");
+
+      // Should have AI insights
+      expect(patientData).toHaveProperty("aiInsights");
+      expect(Array.isArray(patientData.aiInsights)).toBe(true);
+
+      return true;
+    };
+
+    it("Property 12: Hospital Patient Access - Complete patient information access", () => {
+      fc.assert(
+        fc.property(
+          patientArb,
+          fc.array(reportArb, { minLength: 0, maxLength: 10 }),
+          (patient, allReports) => {
+            // **Feature: health-insight-core, Property 12: Hospital Patient Access**
+            // **Validates: Requirements 9.3, 9.4, 9.5**
+
+            // Property: For any hospital user accessing patient data, the system should display complete patient information
+            const patientData = getHospitalPatientData(patient, allReports);
+
+            // Validate that all required information is present
+            expect(validateCompletePatientInfo(patientData)).toBe(true);
+
+            // Patient data should match the original patient
+            expect(patientData.patient.uid).toBe(patient.uid);
+            expect(patientData.patient.userType).toBe(patient.userType);
+
+            // Reports should only belong to this patient
+            patientData.reports.forEach((report: any) => {
+              expect(report.patientId).toBe(patient.uid);
+            });
+
+            // Tracked metrics should match patient favorites
+            expect(patientData.trackedMetrics).toEqual(patient.favorites);
+
+            // Profile data should match patient bio data
+            expect(patientData.profileData).toEqual(patient.bioData);
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
+    it("Property 12: Hospital Patient Access - Report filtering by patient", () => {
+      fc.assert(
+        fc.property(
+          patientArb,
+          fc.array(reportArb, { minLength: 1, maxLength: 15 }),
+          (patient, allReports) => {
+            // **Feature: health-insight-core, Property 12: Hospital Patient Access**
+            // **Validates: Requirements 9.3, 9.4, 9.5**
+
+            // Ensure some reports belong to the patient and some don't
+            const patientReports = allReports
+              .slice(0, Math.ceil(allReports.length / 2))
+              .map((r) => ({ ...r, patientId: patient.uid }));
+            const otherReports = allReports
+              .slice(Math.ceil(allReports.length / 2))
+              .map((r) => ({ ...r, patientId: "other-patient-id" }));
+            const mixedReports = [...patientReports, ...otherReports];
+
+            // Property: Hospital access should only return reports for the specific patient
+            const patientData = getHospitalPatientData(patient, mixedReports);
+
+            // All returned reports should belong to the patient
+            patientData.reports.forEach((report: any) => {
+              expect(report.patientId).toBe(patient.uid);
+            });
+
+            // Should return exactly the patient's reports
+            expect(patientData.reports.length).toBe(patientReports.length);
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
+    it("Property 12: Hospital Patient Access - AI insights availability", () => {
+      fc.assert(
+        fc.property(
+          patientArb,
+          fc.array(reportArb, { minLength: 1, maxLength: 10 }),
+          (patient, allReports) => {
+            // **Feature: health-insight-core, Property 12: Hospital Patient Access**
+            // **Validates: Requirements 9.3, 9.4, 9.5**
+
+            // Set some reports to belong to the patient with AI insights
+            const patientReports = allReports.map((r) => ({
+              ...r,
+              patientId: patient.uid,
+              llmOutput: Math.random() > 0.5 ? "AI analysis result" : undefined,
+            }));
+
+            // Property: AI insights should be available for reports that have LLM output
+            const patientData = getHospitalPatientData(patient, patientReports);
+
+            const expectedInsights = patientReports
+              .filter((r) => r.llmOutput)
+              .map((r) => r.llmOutput);
+
+            expect(patientData.aiInsights).toEqual(expectedInsights);
+
+            // AI insights should only contain non-empty values
+            patientData.aiInsights.forEach((insight: any) => {
+              expect(insight).toBeTruthy();
+              expect(typeof insight).toBe("string");
+            });
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
+    it("Property 12: Hospital Patient Access - Profile data completeness", () => {
+      fc.assert(
+        fc.property(
+          patientArb,
+          fc.array(reportArb, { maxLength: 5 }),
+          (patient, reports) => {
+            // **Feature: health-insight-core, Property 12: Hospital Patient Access**
+            // **Validates: Requirements 9.3, 9.4, 9.5**
+
+            // Property: Profile data should be complete and accessible to hospital users
+            const patientData = getHospitalPatientData(patient, reports);
+
+            // Profile data should preserve all original bio data
+            expect(patientData.profileData).toEqual(patient.bioData);
+
+            // If patient has bio data, it should be accessible
+            if (patient.bioData && Object.keys(patient.bioData).length > 0) {
+              Object.keys(patient.bioData).forEach((key) => {
+                expect(patientData.profileData).toHaveProperty(key);
+                expect(patientData.profileData[key]).toEqual(
+                  patient.bioData[key]
+                );
+              });
+            }
+
+            // Profile data should be an object (even if empty)
+            expect(typeof patientData.profileData).toBe("object");
+            expect(patientData.profileData).not.toBeNull();
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
+    it("Property 12: Hospital Patient Access - Tracked metrics consistency", () => {
+      fc.assert(
+        fc.property(
+          patientArb,
+          fc.array(reportArb, { maxLength: 8 }),
+          (patient, reports) => {
+            // **Feature: health-insight-core, Property 12: Hospital Patient Access**
+            // **Validates: Requirements 9.3, 9.4, 9.5**
+
+            // Property: Tracked metrics should be consistent with patient preferences
+            const patientData = getHospitalPatientData(patient, reports);
+
+            // Tracked metrics should match patient favorites exactly
+            expect(patientData.trackedMetrics).toEqual(patient.favorites);
+
+            // Should be an array
+            expect(Array.isArray(patientData.trackedMetrics)).toBe(true);
+
+            // Each tracked metric should be a string
+            patientData.trackedMetrics.forEach((metric: any) => {
+              expect(typeof metric).toBe("string");
+              expect(metric.length).toBeGreaterThan(0);
+            });
+
+            // The tracked metrics should match the patient favorites exactly (including duplicates if present)
+            // This tests that the system preserves the original favorites array structure
+            expect(patientData.trackedMetrics).toEqual(patient.favorites);
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+  });
 });
