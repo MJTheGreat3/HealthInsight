@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { useRealtimeData } from "../hooks/useRealtimeData";
 import { Report, MetricData } from "../types";
+import { apiService, ApiError } from "../services/api";
+import LoadingSpinner, { PageLoader, InlineLoader } from "./LoadingSpinner";
+import ErrorBoundary from "./ErrorBoundary";
 
 const ResultsPage: React.FC = () => {
   const { reportId } = useParams<{ reportId: string }>();
@@ -9,8 +13,11 @@ const ResultsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedConcerns, setSelectedConcerns] = useState<string[]>([]);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [updatingConcerns, setUpdatingConcerns] = useState(false);
   const navigate = useNavigate();
   const { appUser, currentUser } = useAuth();
+  const { notify } = useRealtimeData();
 
   useEffect(() => {
     if (reportId && appUser) {
@@ -23,24 +30,72 @@ const ResultsPage: React.FC = () => {
 
     try {
       setLoading(true);
-      const token = await currentUser!.getIdToken();
-      const response = await fetch(`/api/v1/reports/${reportId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      setError(null);
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch report");
+      const reportData = await apiService.reports.getReport(reportId);
+      setReport(reportData.report);
+      setSelectedConcerns(reportData.report.selected_concerns || []);
+    } catch (err) {
+      console.error("Error fetching report:", err);
+      let errorMessage = "Failed to load report";
+
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+        if (err.status === 404) {
+          errorMessage =
+            "Report not found. It may have been deleted or you don't have access to it.";
+        } else if (err.status === 403) {
+          errorMessage = "You don't have permission to view this report.";
+        }
       }
 
-      const reportData = await response.json();
-      setReport(reportData);
-      setSelectedConcerns(reportData.selectedConcerns || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load report");
+      setError(errorMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const generateAnalysis = async () => {
+    if (!report || !reportId) return;
+
+    try {
+      setAnalysisLoading(true);
+      const analysisData = await apiService.reports.generateAnalysis(
+        reportId,
+        true
+      );
+
+      // Update report with new analysis
+      setReport((prev) =>
+        prev
+          ? {
+              ...prev,
+              llmOutput: JSON.stringify(analysisData.analysis),
+              llmReportId: analysisData.llm_report_id,
+            }
+          : null
+      );
+
+      notify({
+        type: "success",
+        title: "Analysis Generated",
+        message: "AI analysis has been generated for your report.",
+      });
+    } catch (err) {
+      console.error("Error generating analysis:", err);
+      let errorMessage = "Failed to generate analysis";
+
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+      }
+
+      notify({
+        type: "error",
+        title: "Analysis Failed",
+        message: errorMessage,
+      });
+    } finally {
+      setAnalysisLoading(false);
     }
   };
 
@@ -60,43 +115,53 @@ const ResultsPage: React.FC = () => {
   };
 
   const toggleConcern = async (metricName: string) => {
-    if (!report || !appUser || !currentUser) return;
+    if (!report || !appUser || !currentUser || updatingConcerns) return;
 
     const newConcerns = selectedConcerns.includes(metricName)
       ? selectedConcerns.filter((c) => c !== metricName)
       : [...selectedConcerns, metricName];
 
     try {
-      const token = await currentUser!.getIdToken();
-      const response = await fetch(
-        `/api/v1/reports/${report.reportId}/concerns`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ concerns: newConcerns }),
-        }
-      );
+      setUpdatingConcerns(true);
 
-      if (response.ok) {
-        setSelectedConcerns(newConcerns);
+      // Update tracked metrics via API
+      if (selectedConcerns.includes(metricName)) {
+        await apiService.metrics.removeTrackedMetric(metricName);
+      } else {
+        await apiService.metrics.addTrackedMetric(metricName);
       }
+
+      setSelectedConcerns(newConcerns);
+
+      notify({
+        type: "success",
+        title: selectedConcerns.includes(metricName)
+          ? "Metric Untracked"
+          : "Metric Tracked",
+        message: `${metricName} ${
+          selectedConcerns.includes(metricName) ? "removed from" : "added to"
+        } your tracked metrics.`,
+      });
     } catch (err) {
       console.error("Failed to update concerns:", err);
+
+      let errorMessage = "Failed to update tracked metrics";
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+      }
+
+      notify({
+        type: "error",
+        title: "Update Failed",
+        message: errorMessage,
+      });
+    } finally {
+      setUpdatingConcerns(false);
     }
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your results...</p>
-        </div>
-      </div>
-    );
+    return <PageLoader text="Loading your results..." />;
   }
 
   if (error || !report) {
@@ -146,7 +211,9 @@ const ResultsPage: React.FC = () => {
                 </h1>
                 <p className="text-sm text-gray-500">
                   Report processed on{" "}
-                  {new Date(report.processedAt).toLocaleDateString()}
+                  {report.processed_at
+                    ? new Date(report.processed_at).toLocaleDateString()
+                    : "Unknown date"}
                 </p>
               </div>
               <div className="flex space-x-3">
@@ -189,8 +256,12 @@ const ResultsPage: React.FC = () => {
                           selectedConcerns.includes(key)
                             ? "border-blue-300 bg-blue-50"
                             : "border-gray-200 hover:border-gray-300"
+                        } ${
+                          updatingConcerns
+                            ? "opacity-50 cursor-not-allowed"
+                            : ""
                         }`}
-                        onClick={() => toggleConcern(key)}
+                        onClick={() => !updatingConcerns && toggleConcern(key)}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
@@ -250,15 +321,37 @@ const ResultsPage: React.FC = () => {
           <div className="lg:col-span-1">
             <div className="bg-white shadow rounded-lg">
               <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  AI Analysis & Recommendations
-                </h2>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    AI Analysis & Recommendations
+                  </h2>
+                  {!report.llmOutput && (
+                    <button
+                      onClick={generateAnalysis}
+                      disabled={analysisLoading}
+                      className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                    >
+                      {analysisLoading && (
+                        <LoadingSpinner size="sm" color="white" />
+                      )}
+                      <span>
+                        {analysisLoading
+                          ? "Generating..."
+                          : "Generate Analysis"}
+                      </span>
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="p-6">
-                {report.llmOutput ? (
+                {analysisLoading ? (
+                  <InlineLoader text="Generating AI analysis..." />
+                ) : report.llmOutput ? (
                   <div className="prose prose-sm max-w-none">
                     <div className="whitespace-pre-wrap text-gray-700">
-                      {report.llmOutput}
+                      {typeof report.llmOutput === "string"
+                        ? report.llmOutput
+                        : JSON.stringify(report.llmOutput, null, 2)}
                     </div>
                   </div>
                 ) : (
@@ -278,9 +371,9 @@ const ResultsPage: React.FC = () => {
                         />
                       </svg>
                     </div>
-                    <p className="text-gray-500">
-                      AI analysis is being generated. Please check back in a few
-                      moments.
+                    <p className="text-gray-500 mb-4">
+                      No AI analysis available yet. Click "Generate Analysis" to
+                      create personalized health insights.
                     </p>
                   </div>
                 )}

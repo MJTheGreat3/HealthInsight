@@ -11,6 +11,11 @@ from app.models.user import UserType, UserModel, PatientModel, InstitutionModel
 from app.core.middleware import auth_middleware
 
 
+# Alias decorators for backward compatibility
+require_auth = require_authentication = lambda func: require_authentication(func)
+require_patient = require_patient_role
+
+
 def require_roles(allowed_roles: List[UserType]):
     """
     Decorator factory to require specific roles for endpoint access

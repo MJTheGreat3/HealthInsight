@@ -2,6 +2,8 @@ import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useRealtimeData } from "../hooks/useRealtimeData";
+import { apiService, ApiError } from "../services/api";
+import LoadingSpinner, { ButtonLoader } from "./LoadingSpinner";
 
 interface UploadProgress {
   progress: number;
@@ -79,10 +81,6 @@ const UploadPage: React.FC = () => {
     setUploadProgress({ progress: 0, status: "uploading" });
 
     try {
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-      formData.append("patient_id", appUser.uid);
-
       // Simulate upload progress
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) => {
@@ -93,45 +91,70 @@ const UploadPage: React.FC = () => {
         });
       }, 200);
 
-      const token = await currentUser!.getIdToken();
-      const response = await fetch("/api/v1/reports/upload", {
-        method: "POST",
-        body: formData,
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      // Upload file using API service
+      const result = await apiService.reports.upload(selectedFile, appUser.uid);
 
       clearInterval(progressInterval);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Upload failed");
-      }
-
-      const result = await response.json();
-
       setUploadProgress({ progress: 100, status: "processing" });
 
-      // Simulate processing time
-      setTimeout(() => {
-        setUploadProgress({ progress: 100, status: "success" });
+      // Poll for processing completion
+      const pollProcessing = async (reportId: string) => {
+        try {
+          const statusResponse = await apiService.reports.getStatus(reportId);
 
-        // Notify about successful upload
-        notify({
-          type: "success",
-          title: "Report Uploaded Successfully",
-          message: "Your medical report has been processed and analyzed.",
-        });
+          if (statusResponse.processing_status === "completed") {
+            setUploadProgress({ progress: 100, status: "success" });
 
-        // Navigate to results page with report ID
-        navigate(`/patient/results/${result.report_id}`);
-      }, 2000);
+            // Notify about successful upload
+            notify({
+              type: "success",
+              title: "Report Uploaded Successfully",
+              message: "Your medical report has been processed and analyzed.",
+            });
+
+            // Navigate to results page with report ID
+            navigate(`/patient/results/${reportId}`);
+          } else if (statusResponse.processing_status === "failed") {
+            throw new Error("Report processing failed");
+          } else {
+            // Still processing, poll again
+            setTimeout(() => pollProcessing(reportId), 2000);
+          }
+        } catch (error) {
+          console.error("Error checking processing status:", error);
+          setUploadProgress({
+            progress: 0,
+            status: "error",
+            message: "Failed to check processing status",
+          });
+        }
+      };
+
+      // Start polling for processing status
+      if (result.report_id) {
+        setTimeout(() => pollProcessing(result.report_id), 1000);
+      }
     } catch (error) {
+      console.error("Upload error:", error);
+      let errorMessage = "Upload failed";
+
+      if (error instanceof ApiError) {
+        errorMessage = error.message;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
       setUploadProgress({
         progress: 0,
         status: "error",
-        message: error instanceof Error ? error.message : "Upload failed",
+        message: errorMessage,
+      });
+
+      // Notify about upload failure
+      notify({
+        type: "error",
+        title: "Upload Failed",
+        message: errorMessage,
       });
     }
   };
@@ -297,12 +320,16 @@ const UploadPage: React.FC = () => {
                   uploadProgress.status === "uploading" ||
                   uploadProgress.status === "processing"
                 }
-                className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
               >
-                {uploadProgress.status === "uploading" ||
-                uploadProgress.status === "processing"
-                  ? "Processing..."
-                  : "Upload & Analyze"}
+                {(uploadProgress.status === "uploading" ||
+                  uploadProgress.status === "processing") && <ButtonLoader />}
+                <span>
+                  {uploadProgress.status === "uploading" ||
+                  uploadProgress.status === "processing"
+                    ? "Processing..."
+                    : "Upload & Analyze"}
+                </span>
               </button>
             </div>
           </div>
