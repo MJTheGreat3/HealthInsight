@@ -11,7 +11,7 @@ import logging
 
 from app.core.database import get_database
 from app.models import (
-    PatientModel, InstitutionModel, Report, LLMReportModel, 
+    PatientModel, InstitutionModel, UserModel, Report, LLMReportModel, 
     ChatSession, UserType
 )
 
@@ -74,7 +74,7 @@ class DatabaseService:
             logger.warning(f"Failed to create some indexes: {e}")
     
     # User CRUD operations
-    async def create_user(self, user_data: Union[PatientModel, InstitutionModel]) -> str:
+    async def create_user(self, user_data: Union[PatientModel, InstitutionModel, UserModel]) -> str:
         """Create a new user (patient or institution)"""
         try:
             user_dict = user_data.model_dump(exclude_none=True)
