@@ -87,6 +87,18 @@ async def add_metric_to_tracking(
         )
         
         if success:
+            # Send real-time notification
+            from app.services.websocket import websocket_service
+            if websocket_service:
+                await websocket_service.broadcast_data_update(
+                    patient_id,
+                    "metric_added_to_tracking",
+                    {
+                        "metric_name": request.metric_name,
+                        "action": "added"
+                    }
+                )
+            
             return {"message": f"Metric '{request.metric_name}' added to tracking"}
         else:
             raise HTTPException(status_code=400, detail="Failed to add metric to tracking")
@@ -108,6 +120,18 @@ async def remove_metric_from_tracking(
         )
         
         if success:
+            # Send real-time notification
+            from app.services.websocket import websocket_service
+            if websocket_service:
+                await websocket_service.broadcast_data_update(
+                    patient_id,
+                    "metric_removed_from_tracking",
+                    {
+                        "metric_name": request.metric_name,
+                        "action": "removed"
+                    }
+                )
+            
             return {"message": f"Metric '{request.metric_name}' removed from tracking"}
         else:
             raise HTTPException(status_code=400, detail="Failed to remove metric from tracking")

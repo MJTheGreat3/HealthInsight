@@ -8,6 +8,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.services.auth import AuthService
 from app.models.user import UserType, UserModel, PatientModel, InstitutionModel
 from app.services.audit import audit_service, AuditAction, AuditLevel
+from app.core.exceptions import AuthenticationError, AuthorizationError, get_error_message
+from app.core.error_logging import error_logger
 
 
 class AuthMiddleware:
@@ -33,13 +35,12 @@ class AuthMiddleware:
             Authenticated user model
             
         Raises:
-            HTTPException: If authentication fails
+            AuthenticationError: If authentication fails
         """
         if not credentials or not credentials.credentials:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Missing authentication token",
-                headers={"WWW-Authenticate": "Bearer"},
+            raise AuthenticationError(
+                message=get_error_message("AUTH_TOKEN_MISSING"),
+                details={"headers": {"WWW-Authenticate": "Bearer"}}
             )
         
         try:
@@ -60,7 +61,7 @@ class AuthMiddleware:
             
             return user
             
-        except HTTPException as e:
+        except AuthenticationError as e:
             # Log failed authentication attempt
             if request:
                 ip_address = self._get_client_ip(request)
@@ -74,14 +75,15 @@ class AuthMiddleware:
                     success=False,
                     ip_address=ip_address,
                     user_agent=user_agent,
-                    error_details=str(e.detail)
+                    error_details=str(e.message)
                 )
             
             raise
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Authentication error: {str(e)}"
+            error_logger.log_authentication_error(e, request)
+            raise AuthenticationError(
+                message=get_error_message("AUTH_TOKEN_INVALID"),
+                details={"error_type": type(e).__name__}
             )
     
     async def require_authentication(
@@ -117,7 +119,7 @@ class AuthMiddleware:
             Authenticated patient user model
             
         Raises:
-            HTTPException: If user is not a patient
+            AuthorizationError: If user is not a patient
         """
         user = await self.authenticate_request(credentials, request)
         
@@ -136,9 +138,9 @@ class AuthMiddleware:
                     user_agent=user_agent
                 )
             
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Patient access required"
+            raise AuthorizationError(
+                message=get_error_message("AUTH_PATIENT_ACCESS_REQUIRED"),
+                details={"required_role": "patient", "user_role": user.user_type.value if user.user_type else "unknown"}
             )
         
         return user
@@ -159,7 +161,7 @@ class AuthMiddleware:
             Authenticated institution user model
             
         Raises:
-            HTTPException: If user is not an institution
+            AuthorizationError: If user is not an institution
         """
         user = await self.authenticate_request(credentials, request)
         
@@ -178,9 +180,9 @@ class AuthMiddleware:
                     user_agent=user_agent
                 )
             
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Institution access required"
+            raise AuthorizationError(
+                message=get_error_message("AUTH_INSTITUTION_ACCESS_REQUIRED"),
+                details={"required_role": "institution", "user_role": user.user_type.value if user.user_type else "unknown"}
             )
         
         return user
@@ -203,7 +205,7 @@ class AuthMiddleware:
             Authenticated user model
             
         Raises:
-            HTTPException: If user doesn't have any of the required roles
+            AuthorizationError: If user doesn't have any of the required roles
         """
         user = await self.authenticate_request(credentials, request)
         
@@ -228,9 +230,12 @@ class AuthMiddleware:
                 )
             
             role_names = [role.value for role in allowed_roles]
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Access requires one of the following roles: {', '.join(role_names)}"
+            raise AuthorizationError(
+                message=get_error_message("AUTH_INSUFFICIENT_PERMISSIONS"),
+                details={
+                    "required_roles": role_names,
+                    "user_role": user.user_type.value if user.user_type else "unknown"
+                }
             )
         
         return user

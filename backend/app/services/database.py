@@ -415,6 +415,22 @@ class DatabaseService:
         except Exception as e:
             logger.error(f"Failed to update favorites for user {user_id}: {e}")
             raise
+    
+    async def get_patient_reports(self, patient_id: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get recent reports for a patient"""
+        try:
+            cursor = self.reports.find(
+                {"patient_id": patient_id}
+            ).sort("processed_at", -1).limit(limit)
+            
+            reports = []
+            async for report in cursor:
+                report["_id"] = str(report["_id"])
+                reports.append(report)
+            return reports
+        except Exception as e:
+            logger.error(f"Failed to get reports for patient {patient_id}: {e}")
+            raise
 
 
 # Global database service instance

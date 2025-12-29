@@ -458,6 +458,19 @@ async def process_pdf_report(report_id: str, patient_id: str, pdf_content: bytes
         if not db_service.db:
             await db_service.initialize()
         
+        # Send processing started notification
+        from app.services.websocket import websocket_service
+        if websocket_service:
+            await websocket_service.broadcast_data_update(
+                patient_id,
+                "report_processing_started",
+                {
+                    "report_id": report_id,
+                    "filename": filename,
+                    "status": "processing"
+                }
+            )
+        
         # Parse PDF to extract medical test data
         extracted_data = await pdf_parser_service.parse_medical_report(pdf_content)
         
@@ -478,6 +491,20 @@ async def process_pdf_report(report_id: str, patient_id: str, pdf_content: bytes
         # Update patient's report list
         await db_service.add_report_to_patient(patient_id, report_id)
         
+        # Send processing completed notification
+        if websocket_service:
+            await websocket_service.broadcast_data_update(
+                patient_id,
+                "report_processing_completed",
+                {
+                    "report_id": report_id,
+                    "filename": filename,
+                    "status": "completed",
+                    "attributes_count": len(extracted_data),
+                    "processed_at": report.processed_at.isoformat()
+                }
+            )
+        
         print(f"Successfully processed report {report_id} for patient {patient_id}")
         
     except PDFParsingError as e:
@@ -496,6 +523,20 @@ async def process_pdf_report(report_id: str, patient_id: str, pdf_content: bytes
         )
         
         await db_service.create_report(error_report)
+        
+        # Send processing failed notification
+        from app.services.websocket import websocket_service
+        if websocket_service:
+            await websocket_service.broadcast_data_update(
+                patient_id,
+                "report_processing_failed",
+                {
+                    "report_id": report_id,
+                    "filename": filename,
+                    "status": "failed",
+                    "error": str(e)
+                }
+            )
         
     except Exception as e:
         # Handle other processing errors

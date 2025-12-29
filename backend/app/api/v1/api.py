@@ -3,7 +3,7 @@ API v1 router configuration
 """
 
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, example_rbac, reports, metrics, search
+from app.api.v1.endpoints import auth, example_rbac, reports, metrics, search, chat, realtime
 
 api_router = APIRouter()
 
@@ -18,6 +18,12 @@ api_router.include_router(metrics.router, prefix="/metrics", tags=["tracked-metr
 
 # Include search and filtering endpoints
 api_router.include_router(search.router, prefix="/search", tags=["search-filtering"])
+
+# Include chat endpoints
+api_router.include_router(chat.router, prefix="/chat", tags=["chat"])
+
+# Include real-time synchronization endpoints
+api_router.include_router(realtime.router, prefix="/realtime", tags=["real-time-sync"])
 
 # Include example RBAC endpoints for demonstration
 api_router.include_router(example_rbac.router, prefix="/rbac", tags=["role-based-access-control"])
