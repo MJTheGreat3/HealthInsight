@@ -6,7 +6,7 @@ Provides in-memory caching for frequently accessed data
 import asyncio
 import json
 import time
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, List
 from datetime import datetime, timedelta
 import logging
 

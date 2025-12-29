@@ -9,6 +9,7 @@ from fastapi import HTTPException, status
 
 from app.services.auth import AuthService
 from app.models.user import UserType, UserModel, PatientModel, InstitutionModel
+from app.core.exceptions import AuthenticationError, ConflictError
 
 
 # Test data strategies
@@ -203,12 +204,11 @@ class TestAuthenticationProperties:
         # Arrange - Mock Firebase to raise ValueError for invalid token
         with patch('app.services.auth.verify_firebase_token', side_effect=ValueError("Invalid token")):
             
-            # Act & Assert - Should raise HTTPException for invalid token
-            with pytest.raises(HTTPException) as exc_info:
+            # Act & Assert - Should raise AuthenticationError for invalid token
+            with pytest.raises(AuthenticationError) as exc_info:
                 await auth_service.authenticate_user(invalid_token)
             
-            assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
-            assert "Invalid authentication token" in str(exc_info.value.detail)
+            assert "Invalid authentication token" in str(exc_info.value.message)
     
     @given(valid_firebase_token_data())
     @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
@@ -236,9 +236,8 @@ class TestAuthenticationProperties:
             auth_service.db_service.get_user_by_uid.return_value = existing_user_data
             auth_service.db_service.initialize = AsyncMock()
             
-            # Act & Assert - Should raise conflict error for duplicate registration
-            with pytest.raises(HTTPException) as exc_info:
+            # Act & Assert - Should raise ConflictError for duplicate registration
+            with pytest.raises(ConflictError) as exc_info:
                 await auth_service.register_user(mock_token, UserType.PATIENT, "New Name")
             
-            assert exc_info.value.status_code == status.HTTP_409_CONFLICT
-            assert "User already exists" in str(exc_info.value.detail)
+            assert "Resource already exists" in str(exc_info.value.message)

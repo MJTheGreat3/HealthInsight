@@ -11,9 +11,7 @@ from app.models.user import UserType, UserModel, PatientModel, InstitutionModel
 from app.core.middleware import auth_middleware
 
 
-# Alias decorators for backward compatibility
-require_auth = require_authentication = lambda func: require_authentication(func)
-require_patient = require_patient_role
+# Alias decorators for backward compatibility will be defined after the functions
 
 
 def require_roles(allowed_roles: List[UserType]):
@@ -170,3 +168,7 @@ def require_authentication(func: Callable) -> Callable:
         return await func(*args, **kwargs)
     
     return wrapper
+
+# Alias decorators for backward compatibility
+require_auth = require_authentication
+require_patient = require_patient_role
