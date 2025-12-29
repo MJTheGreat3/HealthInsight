@@ -308,6 +308,14 @@ async def get_current_patient(
     return await auth_middleware.require_patient_role(credentials, request)
 
 
+async def require_patient_role(
+    credentials: HTTPAuthorizationCredentials = HTTPBearer(),
+    request: Request = None
+) -> Union[PatientModel, UserModel]:
+    """Dependency to require patient role (alias for get_current_patient)"""
+    return await auth_middleware.require_patient_role(credentials, request)
+
+
 async def get_current_institution(
     credentials: HTTPAuthorizationCredentials = HTTPBearer(),
     request: Request = None

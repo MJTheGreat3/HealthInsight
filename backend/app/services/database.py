@@ -12,8 +12,9 @@ import logging
 from app.core.database import get_database
 from app.models import (
     PatientModel, InstitutionModel, UserModel, Report, LLMReportModel, 
-    ChatSession, UserType
+    UserType
 )
+from app.models.chat import ChatSession
 
 logger = logging.getLogger(__name__)
 
@@ -182,10 +183,10 @@ class DatabaseService:
             logger.error(f"Failed to get report {report_id}: {e}")
             raise
     
-    async def get_reports_by_patient(self, patient_id: str) -> List[Dict[str, Any]]:
-        """Get all reports for a patient"""
+    async def get_reports_by_patient_id(self, patient_id: str, skip: int = 0, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get reports for a patient with pagination"""
         try:
-            cursor = self.reports.find({"patient_id": patient_id}).sort("processed_at", -1)
+            cursor = self.reports.find({"patient_id": patient_id}).sort("processed_at", -1).skip(skip).limit(limit)
             reports = []
             async for report in cursor:
                 report["_id"] = str(report["_id"])
@@ -193,6 +194,47 @@ class DatabaseService:
             return reports
         except Exception as e:
             logger.error(f"Failed to get reports for patient {patient_id}: {e}")
+            raise
+    
+    async def count_reports_by_patient_id(self, patient_id: str) -> int:
+        """Count total reports for a patient"""
+        try:
+            return await self.reports.count_documents({"patient_id": patient_id})
+        except Exception as e:
+            logger.error(f"Failed to count reports for patient {patient_id}: {e}")
+            raise
+    
+    async def get_reports_by_patient_ids(self, patient_ids: List[str], skip: int = 0, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get reports for multiple patients with pagination"""
+        try:
+            cursor = self.reports.find({"patient_id": {"$in": patient_ids}}).sort("processed_at", -1).skip(skip).limit(limit)
+            reports = []
+            async for report in cursor:
+                report["_id"] = str(report["_id"])
+                reports.append(report)
+            return reports
+        except Exception as e:
+            logger.error(f"Failed to get reports for patients {patient_ids}: {e}")
+            raise
+    
+    async def count_reports_by_patient_ids(self, patient_ids: List[str]) -> int:
+        """Count total reports for multiple patients"""
+        try:
+            return await self.reports.count_documents({"patient_id": {"$in": patient_ids}})
+        except Exception as e:
+            logger.error(f"Failed to count reports for patients {patient_ids}: {e}")
+            raise
+    
+    async def add_report_to_patient(self, patient_id: str, report_id: str) -> bool:
+        """Add report ID to patient's reports list"""
+        try:
+            result = await self.users.update_one(
+                {"uid": patient_id, "user_type": UserType.PATIENT},
+                {"$addToSet": {"reports": report_id}, "$set": {"updated_at": datetime.utcnow()}}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            logger.error(f"Failed to add report {report_id} to patient {patient_id}: {e}")
             raise
     
     async def update_report(self, report_id: str, update_data: Dict[str, Any]) -> bool:
@@ -361,6 +403,18 @@ class DatabaseService:
                 "status": "unhealthy",
                 "error": str(e)
             }
+    
+    async def update_user_favorites(self, user_id: str, favorites: List[str]) -> bool:
+        """Update user's favorite/tracked metrics"""
+        try:
+            result = await self.users.update_one(
+                {"uid": user_id},
+                {"$set": {"favorites": favorites}}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            logger.error(f"Failed to update favorites for user {user_id}: {e}")
+            raise
 
 
 # Global database service instance
