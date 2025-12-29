@@ -9,7 +9,7 @@ export interface User {
 export interface Patient extends User {
   userType: "patient";
   favorites: string[];
-  bioData: Record<string, any>;
+  bioData: Record<string, string | number | string[]>;
   reports: string[];
 }
 
