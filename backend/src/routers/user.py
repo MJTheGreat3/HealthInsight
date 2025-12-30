@@ -378,5 +378,6 @@ async def get_patient_for_hospital(
         "email": patient.get("email"),
         "name": patient.get("name", ""),
         "BioData": patient.get("BioData", {}),
-        "Reports": patient.get("Reports", [])
+        "Reports": patient.get("Reports", []),
+        "Favorites": patient.get("Favorites", [])
     }

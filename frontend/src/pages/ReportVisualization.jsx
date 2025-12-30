@@ -29,7 +29,7 @@ export default function ReportVisualization() {
             const token = await user.getIdToken()
 
             // Fetch report details
-            const reportResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reports/${report_id}`, {
+            const reportResponse = await fetch(`/api/reports/${report_id}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
@@ -45,7 +45,7 @@ export default function ReportVisualization() {
             // Fetch analysis if available
             if (reportData.llm_report_id) {
                 try {
-                    const analysisResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/LLMReport/${reportData.llm_report_id}`, {
+                    const analysisResponse = await fetch(`/api/LLMReport/${reportData.llm_report_id}`, {
                         headers: {
                             Authorization: `Bearer ${token}`,
                         },
@@ -73,7 +73,7 @@ export default function ReportVisualization() {
         try {
             const token = await user.getIdToken()
 
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reports/${report_id}/attribute-by-name`, {
+            const response = await fetch(`/api/reports/${report_id}/attribute-by-name`, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
@@ -107,7 +107,7 @@ export default function ReportVisualization() {
         try {
             const token = await user.getIdToken()
 
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reports/${report_id}/attribute`, {
+            const response = await fetch(`/api/reports/${report_id}/attribute`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -142,7 +142,7 @@ export default function ReportVisualization() {
         try {
             const token = await user.getIdToken()
 
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reports/${report_id}/attribute-by-name`, {
+            const response = await fetch(`/api/reports/${report_id}/attribute-by-name`, {
                 method: "DELETE",
                 headers: {
                     "Content-Type": "application/json",
@@ -175,7 +175,7 @@ export default function ReportVisualization() {
         try {
             const token = await user.getIdToken()
             
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reports/${report_id}/processed-at`, {
+            const response = await fetch(`/api/reports/${report_id}/processed-at`, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",

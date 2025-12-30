@@ -37,8 +37,8 @@ export default function PreviousReports({ readOnly, hospitalView, patientUid: pr
           
           // If hospital view, get favorites from patient profile
           const favUrl = isHospitalView 
-            ? `${import.meta.env.VITE_BACKEND_URL}/api/hospital/patient/${targetUid}`
-            : `${import.meta.env.VITE_BACKEND_URL}/api/user/me`
+            ? `/api/hospital/patient/${targetUid}`
+            : `/api/user/me`
 
           const favoritesRes = await fetch(favUrl, {
             headers: {
@@ -66,7 +66,7 @@ export default function PreviousReports({ readOnly, hospitalView, patientUid: pr
         }
         const token = await user.getIdToken()
         
-        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reports/patient/${targetUid}`, {
+        const response = await fetch(`/api/reports/patient/${targetUid}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -85,7 +85,7 @@ export default function PreviousReports({ readOnly, hospitalView, patientUid: pr
             
             if (report.llm_report_id) {
               try {
-                const analysisResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/LLMReport/${report.llm_report_id}`, {
+                const analysisResponse = await fetch(`/api/LLMReport/${report.llm_report_id}`, {
                   headers: {
                     Authorization: `Bearer ${token}`,
                   },
@@ -147,7 +147,7 @@ export default function PreviousReports({ readOnly, hospitalView, patientUid: pr
       
       console.log("Adding marker to favorites from reports:", markerName)
       
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/favorites`, {
+      const res = await fetch(`/api/user/favorites`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

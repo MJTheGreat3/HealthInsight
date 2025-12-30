@@ -4,7 +4,7 @@ from bson import ObjectId
 from src.db.mongoWrapper import getMongo
 from src.auth.dependencies import get_current_user
 
-router = APIRouter(prefix="/access")
+router = APIRouter(prefix="/api/access")
 
 # Hospital → request access
 @router.post("/request")

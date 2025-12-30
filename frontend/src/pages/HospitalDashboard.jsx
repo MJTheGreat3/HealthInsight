@@ -25,7 +25,7 @@ export default function HospitalDashboard() {
       try {
         const token = await user.getIdToken()
 
-        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/me`, {
+        const res = await fetch(`/api/user/me`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -49,7 +49,7 @@ export default function HospitalDashboard() {
       try {
         const token = await user.getIdToken()
 
-        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/hospital/patients`, {
+        const res = await fetch(`/api/hospital/patients`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -78,7 +78,7 @@ export default function HospitalDashboard() {
       setLoading(true)
       const token = await user.getIdToken()
 
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/access/request`, {
+      const res = await fetch(`/api/access/request`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

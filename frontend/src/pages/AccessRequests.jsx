@@ -13,7 +13,7 @@ export default function AccessRequests() {
 
   // FETCH DATA 
   async function fetchPendingRequests(token) {
-    const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/access/my-requests`, {
+    const res = await fetch(`/api/access/my-requests`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!res.ok) throw new Error("Failed to fetch requests")
@@ -21,7 +21,7 @@ export default function AccessRequests() {
   }
 
   async function fetchActiveAccess(token) {
-    const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/access/active`, {
+    const res = await fetch(`/api/access/active`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!res.ok) throw new Error("Failed to fetch active access")
@@ -53,7 +53,7 @@ export default function AccessRequests() {
     try {
       const token = await user.getIdToken()
 
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/access/respond`, {
+      const res = await fetch(`/api/access/respond`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

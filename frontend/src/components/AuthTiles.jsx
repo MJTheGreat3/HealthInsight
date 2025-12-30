@@ -35,7 +35,7 @@ export default function AuthTiles({ initial = 'login' }) {
       const token = await user.getIdToken()
 
       // Check role
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/auth/me`, {
+      const res = await fetch(`/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       
@@ -70,7 +70,7 @@ export default function AuthTiles({ initial = 'login' }) {
         const token = await user.getIdToken()
         const payload = { user_type: role }
         if (role === 'institution') payload.hospital_name = hospitalName
-        await fetch(`${import.meta.env.VITE_BACKEND_URL}/user`, {
+        await fetch(`/api/user`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify(payload),

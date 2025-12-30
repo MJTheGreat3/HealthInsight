@@ -22,7 +22,7 @@ export default function ReportTile({ report, user, onClose, favoriteMarkers, set
         setError("")
         try {
             const token = user && user.getIdToken ? await user.getIdToken() : null
-            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reports/${report.Report_id}`, {
+            const res = await fetch(`/api/reports/${report.Report_id}`, {
                 headers: token ? { Authorization: `Bearer ${token}` } : {}
             })
 
@@ -74,7 +74,7 @@ export default function ReportTile({ report, user, onClose, favoriteMarkers, set
         try {
             const token = await user.getIdToken()
 
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reports/${report.Report_id}/attribute-by-name`, {
+            const response = await fetch(`/api/reports/${report.Report_id}/attribute-by-name`, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
@@ -109,7 +109,7 @@ export default function ReportTile({ report, user, onClose, favoriteMarkers, set
         try {
             const token = await user.getIdToken()
 
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reports/${report.Report_id}/attribute`, {
+            const response = await fetch(`/api/reports/${report.Report_id}/attribute`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -145,7 +145,7 @@ export default function ReportTile({ report, user, onClose, favoriteMarkers, set
         try {
             const token = await user.getIdToken()
 
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reports/${report.Report_id}/attribute-by-name`, {
+            const response = await fetch(`/api/reports/${report.Report_id}/attribute-by-name`, {
                 method: "DELETE",
                 headers: {
                     "Content-Type": "application/json",
@@ -176,7 +176,7 @@ export default function ReportTile({ report, user, onClose, favoriteMarkers, set
     async function addFavorite(markerName) {
         try {
             const token = user && user.getIdToken ? await user.getIdToken() : null
-            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/favorites`, {
+            const res = await fetch(`/api/user/favorites`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -196,7 +196,7 @@ export default function ReportTile({ report, user, onClose, favoriteMarkers, set
     async function removeFavorite(markerName) {
         try {
             const token = user && user.getIdToken ? await user.getIdToken() : null
-            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/favorites`, {
+            const res = await fetch(`/api/user/favorites`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',
@@ -220,7 +220,7 @@ export default function ReportTile({ report, user, onClose, favoriteMarkers, set
 
         try {
             const token = user && user.getIdToken ? await user.getIdToken() : null
-            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reports/${report.Report_id}/attribute`, {
+            const res = await fetch(`/api/reports/${report.Report_id}/attribute`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
