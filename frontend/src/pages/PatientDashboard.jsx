@@ -5,44 +5,44 @@ import { useEffect, useState } from "react"
 import Dashboard from "./Dashboard"
 
 export default function HospitalPatientDashboard() {
-  const { uid } = useParams()
-  const { user } = useAuth()
-  const [patient, setPatient] = useState(null)
-  const [loading, setLoading] = useState(true)
+    const { uid } = useParams()
+    const { user } = useAuth()
+    const [patient, setPatient] = useState(null)
+    const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (!user || !uid) return
+    useEffect(() => {
+        if (!user || !uid) return
 
-    const fetchPatient = async () => {
-      try {
-        const token = await user.getIdToken()
+        const fetchPatient = async () => {
+            try {
+                const token = await user.getIdToken()
 
-        const res = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/api/hospital/patient/${uid}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        )
+                const res = await fetch(
+                    `/api/hospital/patient/${uid}`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    }
+                )
 
-        if (!res.ok) throw new Error("Failed to load patient")
+                if (!res.ok) throw new Error("Failed to load patient")
 
-        const data = await res.json()
-        setPatient(data)
-      } catch (err) {
-        console.error("Failed to load patient:", err)
-      } finally {
-        setLoading(false)
-      }
-    }
+                const data = await res.json()
+                setPatient(data)
+            } catch (err) {
+                console.error("Failed to load patient:", err)
+            } finally {
+                setLoading(false)
+            }
+        }
 
-    fetchPatient()
-  }, [user, uid])
+        fetchPatient()
+    }, [user, uid])
 
-  if (loading) return <div className="card">Loading patient...</div>
-  if (!patient) return <div className="card">Patient not found</div>
+    if (loading) return <div className="card">Loading patient...</div>
+    if (!patient) return <div className="card">Patient not found</div>
 
-  return ( <Dashboard readOnly={true} hospitalView={true} patientUid={uid} />
-  )
+    return (<Dashboard readOnly={true} hospitalView={true} patientUid={uid} />
+    )
 }

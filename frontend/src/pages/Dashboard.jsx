@@ -28,7 +28,7 @@ export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHo
     useEffect(() => {
         // Debug environment variable
         console.log('Backend URL:', import.meta.env.VITE_BACKEND_URL);
-        
+
         // Wait for auth to load and targetUid to be available
         if (authLoading || !targetUid || (!user && !isHospitalView)) return
 
@@ -38,8 +38,8 @@ export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHo
 
                 // Fetch user data (different endpoints for hospital vs patient view)
                 const url = isHospitalView
-                    ? `${import.meta.env.VITE_BACKEND_URL}/api/hospital/patient/${targetUid}`
-                    : `${import.meta.env.VITE_BACKEND_URL}/api/user/me`
+                    ? `/api/hospital/patient/${targetUid}`
+                    : `/api/user/me`
 
                 const userRes = await fetch(url, {
                     headers: {
@@ -58,7 +58,7 @@ export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHo
                 // Fetch actionable suggestions (only for patient view)
                 if (!isHospitalView) {
                     const suggestionsRes = await fetch(
-                        `${import.meta.env.VITE_BACKEND_URL}/api/dashboard/actionable-suggestions`,
+                        `/api/dashboard/actionable-suggestions`,
                         {
                             headers: {
                                 Authorization: `Bearer ${token}`,
@@ -75,7 +75,7 @@ export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHo
                 }
 
                 // Fetch latest report and analysis
-                const reportsRes = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reports/patient/${targetUid}`, {
+                const reportsRes = await fetch(`/api/reports/patient/${targetUid}`, {
                     headers: {
                         Authorization: `Bearer ${token}`,
                     },
@@ -124,7 +124,7 @@ export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHo
                         // Fetch LLM analysis for the latest report
                         if (latestReport.llm_report_id) {
                             try {
-                                const analysisRes = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/LLMReport/${latestReport.llm_report_id}`, {
+                                const analysisRes = await fetch(`/api/LLMReport/${latestReport.llm_report_id}`, {
                                     headers: {
                                         Authorization: `Bearer ${token}`,
                                     },
@@ -158,7 +158,7 @@ export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHo
 
             console.log("Adding marker to favorites from dashboard:", markerName)
 
-            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/favorites`, {
+            const res = await fetch(`/api/user/favorites`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -192,10 +192,10 @@ export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHo
     return (
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
             {/* Hero Section */}
-            <div style={{ 
-                background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 100%)', 
-                borderRadius: 16, 
-                padding: '32px 40px', 
+            <div style={{
+                background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 100%)',
+                borderRadius: 16,
+                padding: '32px 40px',
                 color: 'white',
                 marginBottom: 32,
                 boxShadow: '0 10px 25px -5px rgba(13, 148, 136, 0.3)',
@@ -209,11 +209,11 @@ export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHo
                                 ? `Patient Dashboard${userData?.name ? ` — ${userData.name}` : ""}`
                                 : `Welcome back${userData?.name ? `, ${userData.name}` : ""}!`}
                         </h1>
-                        
-                        <div style={{ 
-                            background: 'rgba(255, 255, 255, 0.15)', 
-                            backdropFilter: 'blur(8px)', 
-                            padding: '16px 20px', 
+
+                        <div style={{
+                            background: 'rgba(255, 255, 255, 0.15)',
+                            backdropFilter: 'blur(8px)',
+                            padding: '16px 20px',
                             borderRadius: 12,
                             border: '1px solid rgba(255, 255, 255, 0.2)',
                             marginTop: 16
@@ -231,16 +231,16 @@ export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHo
                     </div>
 
                     {!isHospitalView && (
-                        <button 
+                        <button
                             onClick={() => navigate('/upload')}
-                            style={{ 
-                                background: 'white', 
-                                color: '#0f766e', 
-                                border: 'none', 
-                                padding: '12px 24px', 
-                                borderRadius: 50, 
-                                fontSize: 15, 
-                                fontWeight: 600, 
+                            style={{
+                                background: 'white',
+                                color: '#0f766e',
+                                border: 'none',
+                                padding: '12px 24px',
+                                borderRadius: 50,
+                                fontSize: 15,
+                                fontWeight: 600,
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -256,7 +256,7 @@ export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHo
                         </button>
                     )}
                 </div>
-                
+
                 {/* Decorative circles */}
                 <div style={{ position: 'absolute', top: -20, right: -20, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
                 <div style={{ position: 'absolute', bottom: -40, left: -40, width: 300, height: 300, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
@@ -264,10 +264,10 @@ export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHo
 
             {/* Main Grid Layout */}
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24 }}>
-                
+
                 {/* Left Column */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                    
+
                     {/* Favorite Markers Section */}
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -276,7 +276,7 @@ export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHo
                                 Tracked Biomarkers
                             </h3>
                             {!isHospitalView && (
-                                <button 
+                                <button
                                     onClick={() => navigate('/profile')}
                                     style={{ background: 'none', border: 'none', color: '#0d9488', fontSize: 14, cursor: 'pointer', fontWeight: 500 }}
                                 >
@@ -296,7 +296,7 @@ export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHo
                                     <h4 style={{ margin: 0 }}>No markers tracked yet</h4>
                                     <p className="small-muted" style={{ margin: 0, maxWidth: 300 }}>Add biomarkers from your profile or reports to track their trends over time.</p>
                                     {!isHospitalView && (
-                                        <button 
+                                        <button
                                             onClick={() => navigate('/profile')}
                                             className="btn-secondary"
                                             style={{ marginTop: 8 }}
@@ -332,7 +332,7 @@ export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHo
                             <FileText size={20} color="#0d9488" />
                             Latest Report Analysis
                         </h3>
-                        
+
                         {loadingAnalysis ? (
                             <div className="card" style={{ padding: 32, textAlign: 'center', color: '#6b7280' }}>Loading latest analysis...</div>
                         ) : latestAnalysis ? (
@@ -348,7 +348,7 @@ export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHo
 
                 {/* Right Column - Suggestions & Quick Actions */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                    
+
                     {/* Actionable Suggestions */}
                     {!isHospitalView && (
                         <div>
@@ -364,20 +364,20 @@ export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHo
                                 ) : (
                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                                         {actionableSuggestions.map((s, idx) => (
-                                            <div key={idx} style={{ 
-                                                padding: '16px 20px', 
+                                            <div key={idx} style={{
+                                                padding: '16px 20px',
                                                 borderBottom: idx !== actionableSuggestions.length - 1 ? '1px solid #f1f5f9' : 'none',
                                                 display: 'flex',
                                                 gap: 12,
                                                 alignItems: 'flex-start'
                                             }}>
-                                                <div style={{ 
-                                                    minWidth: 24, 
-                                                    height: 24, 
-                                                    borderRadius: '50%', 
-                                                    background: '#f0fdfa', 
-                                                    display: 'flex', 
-                                                    alignItems: 'center', 
+                                                <div style={{
+                                                    minWidth: 24,
+                                                    height: 24,
+                                                    borderRadius: '50%',
+                                                    background: '#f0fdfa',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
                                                     justifyContent: 'center',
                                                     marginTop: 2
                                                 }}>
@@ -406,7 +406,7 @@ export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHo
                                 <div style={{ width: userData?.BioData ? '88%' : '20%', height: '100%', background: '#0d9488', borderRadius: 3 }}></div>
                             </div>
                             <div style={{ marginTop: 8 }}>
-                                <button 
+                                <button
                                     onClick={() => navigate('/profile')}
                                     style={{ width: '100%', padding: '8px', background: 'white', border: '1px solid #cbd5e1', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#334155' }}
                                 >

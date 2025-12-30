@@ -47,7 +47,7 @@ export default function UploadReport() {
             formData.append('file', file)
             formData.append('auto_analyze', 'true')
 
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reports/upload-and-analyze`, {
+            const response = await fetch(`/api/reports/upload-and-analyze`, {
                 method: "POST",
                 headers: {
                     Authorization: `Bearer ${token}`,

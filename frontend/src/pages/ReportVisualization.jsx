@@ -29,7 +29,7 @@ export default function ReportVisualization() {
             const token = await user.getIdToken()
 
             // Fetch report details
-            const reportResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reports/${report_id}`, {
+            const reportResponse = await fetch(`/api/reports/${report_id}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
@@ -45,7 +45,7 @@ export default function ReportVisualization() {
             // Fetch analysis if available
             if (reportData.llm_report_id) {
                 try {
-                    const analysisResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/LLMReport/${reportData.llm_report_id}`, {
+                    const analysisResponse = await fetch(`/api/LLMReport/${reportData.llm_report_id}`, {
                         headers: {
                             Authorization: `Bearer ${token}`,
                         },
@@ -73,7 +73,7 @@ export default function ReportVisualization() {
         try {
             const token = await user.getIdToken()
 
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reports/${report_id}/attribute-by-name`, {
+            const response = await fetch(`/api/reports/${report_id}/attribute-by-name`, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
@@ -107,7 +107,7 @@ export default function ReportVisualization() {
         try {
             const token = await user.getIdToken()
 
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reports/${report_id}/attribute`, {
+            const response = await fetch(`/api/reports/${report_id}/attribute`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -142,7 +142,7 @@ export default function ReportVisualization() {
         try {
             const token = await user.getIdToken()
 
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reports/${report_id}/attribute-by-name`, {
+            const response = await fetch(`/api/reports/${report_id}/attribute-by-name`, {
                 method: "DELETE",
                 headers: {
                     "Content-Type": "application/json",
@@ -174,8 +174,8 @@ export default function ReportVisualization() {
         setSaving(true)
         try {
             const token = await user.getIdToken()
-            
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reports/${report_id}/processed-at`, {
+
+            const response = await fetch(`/api/reports/${report_id}/processed-at`, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
@@ -195,7 +195,7 @@ export default function ReportVisualization() {
             await fetchReportData()
             setEditingDate(false)
             return { success: true }
-            
+
         } catch (err) {
             console.error("Failed to update date:", err)
             return { success: false, error: err.message }
@@ -283,12 +283,12 @@ export default function ReportVisualization() {
                                 <button
                                     onClick={saveDateEdit}
                                     disabled={saving}
-                                    style={{ 
-                                        backgroundColor: '#dcfce7', 
-                                        color: '#16a34a', 
-                                        border: 'none', 
-                                        padding: '4px 8px', 
-                                        borderRadius: '4px', 
+                                    style={{
+                                        backgroundColor: '#dcfce7',
+                                        color: '#16a34a',
+                                        border: 'none',
+                                        padding: '4px 8px',
+                                        borderRadius: '4px',
                                         cursor: 'pointer',
                                         fontSize: '12px'
                                     }}
@@ -298,12 +298,12 @@ export default function ReportVisualization() {
                                 </button>
                                 <button
                                     onClick={cancelDateEdit}
-                                    style={{ 
-                                        backgroundColor: '#fee2e2', 
-                                        color: '#dc2626', 
-                                        border: 'none', 
-                                        padding: '4px 8px', 
-                                        borderRadius: '4px', 
+                                    style={{
+                                        backgroundColor: '#fee2e2',
+                                        color: '#dc2626',
+                                        border: 'none',
+                                        padding: '4px 8px',
+                                        borderRadius: '4px',
                                         cursor: 'pointer',
                                         fontSize: '12px'
                                     }}
@@ -313,7 +313,7 @@ export default function ReportVisualization() {
                                 </button>
                             </div>
                         ) : (
-                            <div 
+                            <div
                                 onClick={startDateEdit}
                                 style={{ cursor: 'pointer', padding: '4px', borderRadius: '4px', display: 'inline-block' }}
                                 title="Click to edit date"

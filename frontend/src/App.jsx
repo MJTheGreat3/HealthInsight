@@ -1,13 +1,13 @@
 import React from 'react'
 import { Routes, Route, NavLink, Outlet } from 'react-router-dom'
-import { Home, FilePlus, Archive, User, LogOut, Users, FileText } from 'lucide-react'
+import { Home, FilePlus, Archive, User, LogOut, Users, FileText, MessageCircle } from 'lucide-react'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Profile from './pages/Profile'
 import UploadReport from './pages/UploadReport'
 import PreviousReports from './pages/PreviousReports'
-import ChatButton from './components/ChatButton'
+import AIChatbot from './pages/AIChatbot'
 import HospitalDashboard from "./pages/HospitalDashboard"
 import HospitalPatientDashboard from './pages/PatientDashboard'
 import HospitalPatientProfile from './pages/PatientProfile'
@@ -58,8 +58,13 @@ function PatientLayout() {
                         <Archive size={18} /> Reports History
                     </NavLink>
 
+
                     <NavLink to="/profile" className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
                         <User size={18} /> My Profile
+                    </NavLink>
+
+                    <NavLink to="/ai-chat" className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
+                        <MessageCircle size={18} /> AI Assistant
                     </NavLink>
 
                     <NavLink to="/access-requests" className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
@@ -112,8 +117,6 @@ function PatientLayout() {
             <main className="app-main" style={{ background: '#f8fafc' }}>
                 <Outlet />
             </main>
-
-            <ChatButton />
         </div>
     )
 }
@@ -140,6 +143,7 @@ export default function App() {
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/upload" element={<UploadReport />} />
                 <Route path="/previous" element={<PreviousReports />} />
+                <Route path="/ai-chat" element={<AIChatbot />} />
                 <Route path="/access-requests" element={<AccessRequests />} />
             </Route>
 
