@@ -3,7 +3,6 @@ import { useParams } from "react-router-dom"
 import { useAuth } from "../auth/useAuth"
 import { useEffect, useState } from "react"
 import Dashboard from "./Dashboard"
-import { API_URLS } from "../utils/api"
 
 export default function HospitalPatientDashboard() {
   const { uid } = useParams()
@@ -19,7 +18,7 @@ export default function HospitalPatientDashboard() {
         const token = await user.getIdToken()
 
         const res = await fetch(
-          API_URLS.HOSPITAL_PATIENT(uid),
+          `${import.meta.env.VITE_BACKEND_URL}/api/hospital/patient/${uid}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

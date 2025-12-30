@@ -1,0 +1,37 @@
+# Docker
+Dockerfile
+docker-compose.yml
+docker-compose.*.yml
+
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# Development
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Node modules (will be handled in individual Dockerfiles)
+node_modules
+
+# Environment files (will be handled in compose)
+.env
+.env.*.local
+
+# Build artifacts
+dist/
+build/

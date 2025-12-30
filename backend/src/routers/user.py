@@ -7,7 +7,7 @@ import json
 from src.auth.dependencies import get_current_user
 from src.schemas import OnboardRequest
 
-router = APIRouter()
+router = APIRouter(prefix="/api")
 
 
 # AUTH CHECK (ROLE + UID)
