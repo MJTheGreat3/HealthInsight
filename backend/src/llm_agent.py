@@ -4,7 +4,7 @@ import json
 from typing import Any, Dict, List, Optional
 import os
 import asyncio
-import google.genai as genai
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -31,7 +31,7 @@ class LLMReportAgent:
         if not api_key:
             raise ValueError("GEMINI_API_KEY environment variable not set. Please add it to your .env file")
 
-        import google.genai as genai
+        import google.generativeai as genai
         genai.configure(api_key=api_key)
         self.model_name = model_name
         self.temperature = temperature
@@ -208,51 +208,6 @@ CSV Output:
             # Parse CSV response
             if not csv_text.strip():
                 return None
-            
-            # Strip code block formatting if present
-            clean_text = csv_text.strip()
-            if clean_text.startswith('```'):
-                clean_text = clean_text[3:]
-            if clean_text.endswith('```'):
-                clean_text = clean_text[:-3]
-            clean_text = clean_text.strip()
-            if clean_text.startswith('csv'):
-                clean_text = clean_text[3:].strip()
-                
-            # Use StringIO to parse CSV
-            csv_file = io.StringIO(clean_text.strip())
-            csv_reader = csv.reader(csv_file)
-            
-            # Skip header if present
-            first_row = next(csv_reader, None)
-            if first_row and len(first_row) >= 4:
-                if first_row[0].lower() in ['test_name', 'test', 'name']:
-                    # Header detected, skip it
-                    data_rows = list(csv_reader)
-                else:
-                    # This is data, include it
-                    data_rows = [first_row] + list(csv_reader)
-            else:
-                data_rows = []
-            
-            # Filter and validate data
-            structured_data = []
-            for row in data_rows:
-                if len(row) >= 4:
-                    test_name = str(row[0]).strip()
-                    value = str(row[1]).strip()
-                    unit = str(row[2]).strip()
-                    range_val = str(row[3]).strip()
-                    
-                    # Validate that we have a test name and value
-                    if test_name and value and any(char.isdigit() for char in value):
-                        structured_data.append([test_name, value, unit, range_val])
-            
-            return structured_data if structured_data else None
-            
-        except Exception as e:
-            print(f"Error extracting CSV from text: {e}")
-            return None
             
             # Strip code block formatting if present
             clean_text = csv_text.strip()
