@@ -45,7 +45,7 @@ export default function UploadReport() {
             formData.append('file', file)
             formData.append('auto_analyze', 'true')
 
-            const response = await fetch("http://127.0.0.1:8000/api/reports/upload-and-analyze", {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/reports/upload-and-analyze`, {
                 method: "POST",
                 headers: {
                     Authorization: `Bearer ${token}`,

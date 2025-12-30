@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react'
 import { Routes, Route, NavLink, Outlet } from 'react-router-dom'
-import { Home, FilePlus, Archive, User, LogOut, Users, FileText } from 'lucide-react'
+import { Home, FilePlus, Archive, User, LogOut, Users, FileText, MessageCircle } from 'lucide-react'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
@@ -8,6 +8,7 @@ import Profile from './pages/Profile'
 import UploadReport from './pages/UploadReport'
 import PreviousReports from './pages/PreviousReports'
 import ReportVisualization from './pages/ReportVisualization'
+import AIChatbot from './pages/AIChatbot'
 import ChatButton from './components/ChatButton'
 import HospitalDashboard from "./pages/HospitalDashboard"
 import HospitalPatientDashboard from './pages/PatientDashboard'
@@ -47,6 +48,10 @@ function PatientLayout() {
 
                     <NavLink to="/previous">
                         <Archive size={16} style={{ marginRight: 8 }} /> Reports
+                    </NavLink>
+
+                    <NavLink to="/ai-chat">
+                        <MessageCircle size={16} style={{ marginRight: 8 }} /> AI Assistant
                     </NavLink>
 
                     <NavLink to="/profile">
@@ -98,7 +103,7 @@ function HospitalLayout() {
 export default function App() {
     // Global 401 redirect handling
     useAuthRedirect()
-    
+
     // Set favicon dynamically to match app logo
     useEffect(() => {
         // Create SVG favicon matching the app logo
@@ -141,8 +146,9 @@ export default function App() {
                 <Route path="/upload" element={<UploadReport />} />
                 <Route path="/previous" element={<PreviousReports />} />
                 <Route path="/report/:report_id" element={<ReportVisualization />} />
+                <Route path="/ai-chat" element={<AIChatbot />} />
                 <Route path="/access-requests" element={<AccessRequests />} />
-            </Route>
+            </Route >
 
             <Route element={<HospitalLayout />}>
                 <Route path="/hospital" element={<HospitalDashboard />} />
@@ -155,6 +161,6 @@ export default function App() {
             </Route>
 
 
-        </Routes>
+        </Routes >
     )
 }

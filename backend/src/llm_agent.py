@@ -19,19 +19,20 @@ except ImportError:
 
 class LLMReportAgent:
     
-    def __init__(self, model_name: str = "gemini-2.5-flash", temperature: float = 0.0):
+    def __init__(self, model_name: str = "gemini-2.5-flash", temperature: float = 0.0,system_instruction:str | None  = None):
         # Try to get API key from config first, then environment
-        api_key = None
-        if HAS_CONFIG and 'settings' in locals():
+        if HAS_CONFIG:
             api_key = getattr(settings, 'GEMINI_API_KEY', None)
-        if not api_key:
-            # Fallback to environment
+            if not api_key:
+                # Fallback to environment
+                api_key = os.getenv("GEMINI_API_KEY")
+        else:
+            # Fallback to environment only
             api_key = os.getenv("GEMINI_API_KEY")
         
         if not api_key:
             raise ValueError("GEMINI_API_KEY environment variable not set. Please add it to your .env file")
 
-        import google.generativeai as genai
         genai.configure(api_key=api_key)
         self.model_name = model_name
         self.temperature = temperature
@@ -41,7 +42,8 @@ class LLMReportAgent:
             model_name=model_name,
             generation_config={
                 "temperature": temperature,
-            }
+            },
+            system_instruction=system_instruction
         )
 
     

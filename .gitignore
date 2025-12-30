@@ -1,4 +1,19 @@
 # Environment variables
+# Node
+AGENTS.md
+node_modules/
+Frontend/node_modules/
+.vite/
+dist/
+Frontend/dist/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+.venv/
 .env
 .env.local
 .env.development.local
@@ -152,4 +167,5 @@ data/
 
 # Firebase key
 backend/firebase-admin.json
+
 

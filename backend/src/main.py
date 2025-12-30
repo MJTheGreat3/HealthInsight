@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from bson import ObjectId
 from src.db.mongoWrapper import getMongo
 from bson.json_util import dumps
-from src.routers import report,llmReport,user,dashboard, access
+from src.routers import report,llmReport,user,dashboard, access,chat
 from src.core.config import settings
 import json
 
@@ -31,12 +31,5 @@ app.include_router(llmReport.router)
 app.include_router(user.router)
 app.include_router(dashboard.router)
 app.include_router(access.router)
-
-@app.get("/test-comment")
-async def test_comment():
-    mongo = await getMongo()
-    comment = await mongo.find_one(
-        "comments", {"_id": ObjectId("5a9427648b0beebeb69579e7")}
-    )
-    return json.loads(dumps(comment))
+app.include_router(chat.router)
 

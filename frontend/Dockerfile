@@ -24,6 +24,9 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Copy built application
 COPY --from=build /app/dist /usr/share/nginx/html
 
+# Copy static files from Public folder to nginx root
+COPY --from=build /app/Public /usr/share/nginx/html
+
 # Use existing nginx user, but ensure proper permissions
 RUN chown -R nginx:nginx /var/cache/nginx && \
     chown -R nginx:nginx /usr/share/nginx/html

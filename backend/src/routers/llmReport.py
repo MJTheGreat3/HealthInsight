@@ -112,3 +112,13 @@ async def upload_report(report: ReportModel, current_user: dict = Depends(get_cu
 
   return {"llm_report_id": llm_inserted, "analysis": analysis}
 
+@router.get("/LLMReportsPatientList/{patient_id}")
+async def get_report_list(patient_id: str):
+  mongo = await getMongo()
+  collection = mongo.collection("LLMReports")
+  cursor = collection.find(
+    {"patient_id": patient_id},
+    {"_id": 1, "report_id": 1, "time": 1}
+  ).sort("time", -1).limit(10)
+  reports = await cursor.to_list(length=10)
+  return json.loads(dumps(reports)) 

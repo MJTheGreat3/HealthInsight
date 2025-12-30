@@ -32,7 +32,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    image: healthinsight_backend
+    image: healthinsight1_backend
+    # image: healthinsight_backend
     container_name: healthinsight_backend
     restart: unless-stopped
     environment:
@@ -55,7 +56,7 @@ services:
     build:
       context: ./Frontend
       dockerfile: Dockerfile
-    image: healthinsight_frontend
+    image: healthinsight_frontend1
     container_name: healthinsight_frontend
     restart: unless-stopped
     ports:

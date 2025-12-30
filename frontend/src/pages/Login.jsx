@@ -97,7 +97,7 @@ export default function Login() {
         <div style={{ padding: 28 }}>
             <div className="card login-split">
                 <div className="login-left">
-                    <img src="/src/assets/illustration.png" alt="illustration" />
+                    <img src="/illustration.png" alt="illustration" />
                 </div>
 
                 <div className="login-right">
