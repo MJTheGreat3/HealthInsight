@@ -58,7 +58,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-
+backend/.env
 # IDEs
 .vscode/
 .idea/
@@ -149,3 +149,7 @@ temp/
 
 # MongoDB
 data/
+
+# Firebase key
+backend/firebase-admin.json
+

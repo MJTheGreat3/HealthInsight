@@ -1,1 +1,0 @@
-# HealthInsightCore Backend Application
