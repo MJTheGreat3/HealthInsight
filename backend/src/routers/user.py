@@ -245,11 +245,16 @@ async def remove_favorite_marker(
     
     print(f"Removing marker: '{marker}' for user: {current_user['uid']}")
     
-    # Remove from favorites
+    # Remove from favorites (case-insensitive matching)
+    # First, get current favorites and remove manually
+    user_favorites = user.get("Favorites", [])
+    normalized_marker = marker.lower()
+    updated_favorites = [fav for fav in user_favorites if fav.lower() != normalized_marker]
+    
     result = await mongo.update_one(
         "Users",
         {"uid": current_user["uid"]},
-        {"$pull": {"Favorites": marker}},
+        {"$set": {"Favorites": updated_favorites}},
         raw=True
     )
     print(f"MongoDB delete result: {result}")
