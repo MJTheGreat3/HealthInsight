@@ -8,6 +8,9 @@ services:
     environment:
       - DEBUG=true
       - RELOAD=true
+      - MONGODB_URL=mongodb://admin:password123@mongodb:27017/healthinsight?authSource=admin
+      - PYTHONPATH=/app/src
+    command: ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]  # Enable hot reload
 
   frontend:
     build:
@@ -18,4 +21,4 @@ services:
     volumes:
       - ./Frontend/src:/app/src:rw  # Hot reload support
     ports:
-      - "3000:5173"
+      - "5174:5173"  # Use port 5174 to avoid conflicts

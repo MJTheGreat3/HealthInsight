@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { sendEmailVerification } from "firebase/auth"
 import { useAuth } from "../auth/useAuth"
 import { useParams, useLocation } from "react-router-dom"
+import { API_URLS } from "../utils/api"
 
 
 export default function Profile({ readOnly: propReadOnly = false, hospitalView: propHospitalView = false, patientUid: propPatientUid }) {
@@ -79,8 +80,8 @@ export default function Profile({ readOnly: propReadOnly = false, hospitalView: 
                 const token = await user.getIdToken()
 
                 const url = isHospitalView
-                    ? `http://localhost:8000/hospital/patient/${targetUid}`
-                    : "http://localhost:8000/user/me"
+                    ? API_URLS.HOSPITAL_PATIENT(targetUid)
+                    : API_URLS.USER_ME
 
                 const res = await fetch(url, {
 
@@ -179,7 +180,7 @@ export default function Profile({ readOnly: propReadOnly = false, hospitalView: 
             const token = await user.getIdToken()
 
             // 2. Call backend to update BioData
-            const res = await fetch("http://localhost:8000/user/me", {
+            const res = await fetch(API_URLS.USER_ME, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
@@ -212,7 +213,7 @@ export default function Profile({ readOnly: propReadOnly = false, hospitalView: 
             
             console.log("Adding favorite marker:", markerName)
             
-            const res = await fetch("http://localhost:8000/user/favorites", {
+            const res = await fetch(API_URLS.USER_FAVORITES, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -246,7 +247,7 @@ export default function Profile({ readOnly: propReadOnly = false, hospitalView: 
             
             console.log("Removing favorite marker:", markerName)
             
-            const res = await fetch("http://localhost:8000/user/favorites", {
+            const res = await fetch(API_URLS.USER_FAVORITES, {
                 method: "DELETE",
                 headers: {
                     "Content-Type": "application/json",

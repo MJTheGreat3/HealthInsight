@@ -3,6 +3,7 @@ import AnalysisCard from '../components/AnalysisCard'
 import { useAuth } from "../auth/useAuth"
 import { useParams, useLocation, useNavigate } from "react-router-dom"
 import { Edit2 } from 'lucide-react'
+import { API_URLS } from "../utils/api"
 
 export default function PreviousReports({ readOnly, hospitalView, patientUid: propPatientUid }) {
   const { user, loading: authLoading } = useAuth()
@@ -30,7 +31,7 @@ export default function PreviousReports({ readOnly, hospitalView, patientUid: pr
       if (!isHospitalView && user) {
         try {
           const token = await user.getIdToken()
-          const favoritesRes = await fetch("http://localhost:8000/user/favorites", {
+          const favoritesRes = await fetch(API_URLS.USER_FAVORITES, {
             headers: {
               Authorization: `Bearer ${token}`,
             },
@@ -122,7 +123,7 @@ export default function PreviousReports({ readOnly, hospitalView, patientUid: pr
       
       console.log("Adding marker to favorites from reports:", markerName)
       
-      const res = await fetch("http://localhost:8000/user/favorites", {
+      const res = await fetch(API_URLS.USER_FAVORITES, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

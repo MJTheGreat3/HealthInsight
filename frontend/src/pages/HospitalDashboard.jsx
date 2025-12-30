@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../auth/useAuth"
 import { logout } from "../auth/logout"
-
-const BACKEND_URL = "http://localhost:8000"
+import { API_URLS } from "../utils/api"
 
 export default function HospitalDashboard() {
   const navigate = useNavigate()
@@ -24,7 +23,7 @@ export default function HospitalDashboard() {
       try {
         const token = await user.getIdToken()
 
-        const res = await fetch(`${BACKEND_URL}/user/me`, {
+        const res = await fetch(API_URLS.USER_ME, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -48,7 +47,7 @@ export default function HospitalDashboard() {
       try {
         const token = await user.getIdToken()
 
-        const res = await fetch(`${BACKEND_URL}/hospital/patients`, {
+        const res = await fetch(API_URLS.HOSPITAL_PATIENTS, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -77,7 +76,7 @@ export default function HospitalDashboard() {
       setLoading(true)
       const token = await user.getIdToken()
 
-      const res = await fetch(`${BACKEND_URL}/access/request`, {
+      const res = await fetch(API_URLS.ACCESS_REQUEST, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

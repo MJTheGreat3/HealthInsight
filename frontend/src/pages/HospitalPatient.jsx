@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useAuth } from "../auth/useAuth"
 import AnalysisCard from "../components/AnalysisCard"
+import { API_URLS } from "../utils/api"
 
 export default function HospitalPatient() {
   const { id } = useParams()
@@ -21,7 +22,7 @@ export default function HospitalPatient() {
         const token = await user.getIdToken()
 
         // First, get all approved patients to find the one with matching UID
-        const patientsRes = await fetch("http://localhost:8000/hospital/patients", {
+        const patientsRes = await fetch(API_URLS.HOSPITAL_PATIENTS, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

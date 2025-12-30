@@ -4,6 +4,7 @@ import ChartWidget from '../components/ChartWidget'
 import { useAuth } from "../auth/useAuth"
 import { useParams, useLocation } from "react-router-dom"
 import { auth } from '../firebase/firebase'
+import { API_URLS } from "../utils/api"
 
 export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHospitalView, patientUid: propPatientUid }) {
     const { uid: urlPatientUid } = useParams()
@@ -34,8 +35,8 @@ export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHo
 
                 // Fetch user data (different endpoints for hospital vs patient view)
                 const url = isHospitalView
-                    ? `http://localhost:8000/hospital/patient/${targetUid}`
-                    : "http://localhost:8000/user/me"
+                    ? API_URLS.HOSPITAL_PATIENT(targetUid)
+                    : API_URLS.USER_ME
 
                 const userRes = await fetch(url, {
                     headers: {
@@ -123,7 +124,7 @@ export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHo
                 // Fetch actionable suggestions (only for patient view)
                 if (!isHospitalView) {
                     const suggestionsRes = await fetch(
-                        "http://localhost:8000/dashboard/actionable-suggestions",
+                        API_URLS.DASHBOARD_ACTIONABLE_SUGGESTIONS,
                         {
                             headers: {
                                 Authorization: `Bearer ${token}`,
@@ -161,7 +162,7 @@ export default function Dashboard({ readOnly: propReadOnly, hospitalView: propHo
 
             console.log("Adding marker to favorites from dashboard:", markerName)
 
-            const res = await fetch("http://localhost:8000/user/favorites", {
+            const res = await fetch(API_URLS.USER_FAVORITES, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

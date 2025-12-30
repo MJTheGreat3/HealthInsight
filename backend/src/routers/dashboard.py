@@ -12,12 +12,9 @@ async def get_actionable_suggestions(current_user=Depends(get_current_user)):
     mongo = await getMongo()
     user_id = current_user["uid"]
 
-    reports = await mongo.find_many(
-        "Reports",
-        {"patient_id": user_id},
-        sort=[("time", -1)],
-        limit=5
-    )
+    col = mongo.collection("Reports")
+    cursor = col.find({"patient_id": user_id}).sort("time", -1).limit(5)
+    reports = await cursor.to_list(length=5)
 
 
     # Case: No reports at all
