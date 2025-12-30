@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     unpaper \
     ghostscript \
     libmagic1 \
+    libmupdf-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
