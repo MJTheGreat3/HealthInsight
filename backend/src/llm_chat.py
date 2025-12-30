@@ -225,20 +225,20 @@ Keep the response concise and clear.
 '''
 
 def build_query_prompt(task_str, context):
-  return f'''
-    Conversation History:
-    {context['conversation_history']}
+    return f'''
+        Conversation History:
+        {context['conversation_history']}
 
-    Context:
-    - Medical Report Data 
-    {context['medical_report']}
-    - Suggestion list
-    {context['suggestion_list']}
+        Context:
+        - Medical Report Data 
+        {context['medical_report']}
+        - Suggestion list
+        {context['suggestion_list']}
 
-    User Question:{context['current_message']}
+        User Question:{context['current_message']}
 
-    Task: {task_str} 
-  '''
+        Task: {task_str} 
+    '''
 
 INTENT_TO_PROMPT = {
     "METRIC_EXPLAINATION": (metric_explaination_system_prompt, "Explain the relevant medical metric according to the system instructions."),

@@ -19,7 +19,7 @@ except ImportError:
 
 class LLMReportAgent:
     
-    def __init__(self, model_name: str = "gemini-2.5-flash", temperature: float = 0.0,system_instruction:str | None  = None):
+    def __init__(self, model_name: str = "gemini-1.5-flash", temperature: float = 0.0,system_instruction:str | None  = None):
         # Try to get API key from config first, then environment
         if HAS_CONFIG:
             api_key = getattr(settings, 'GEMINI_API_KEY', None)
