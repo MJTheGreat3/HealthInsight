@@ -1,0 +1,16 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies with optional deps for esbuild
+COPY package.json package-lock.json ./
+RUN npm ci --include=optional
+
+# Copy source code
+COPY . .
+
+# Expose port for Vite dev server
+EXPOSE 5173
+
+# Start the development server
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

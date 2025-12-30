@@ -26,7 +26,7 @@ def ping():
 
 
 @router.get("/db-test")
-async def test_db():
+async def test_db(current_user: dict = Depends(get_current_user)):
     try:
         mongo = await getMongo()
         if mongo is None:
@@ -365,7 +365,7 @@ async def upload_and_analyze(
 
 
 @router.get("/reports/{report_id}")
-async def get_report(report_id: str):
+async def get_report(report_id: str, current_user: dict = Depends(get_current_user)):
     """
     Retrieve a specific report by ID
     """
@@ -391,7 +391,7 @@ async def get_report(report_id: str):
 
 
 @router.get("/reports/patient/{patient_id}")
-async def get_patient_reports(patient_id: str):
+async def get_patient_reports(patient_id: str, current_user: dict = Depends(get_current_user)):
     """
     Retrieve all reports for a specific patient
     """
@@ -421,7 +421,8 @@ async def get_patient_reports(patient_id: str):
 @router.patch("/reports/{report_id}/processed-at")
 async def update_processed_at(
     report_id: str,
-    payload: ProcessedAtUpdate
+    payload: ProcessedAtUpdate,
+    current_user: dict = Depends(get_current_user)
 ):
     mongo = await getMongo()
     if mongo is None:
@@ -445,7 +446,8 @@ async def update_processed_at(
 @router.patch("/reports/{report_id}/attribute-by-name")
 async def update_attribute_by_name(
     report_id: str,
-    payload: AttributeUpdateByName
+    payload: AttributeUpdateByName,
+    current_user: dict = Depends(get_current_user)
 ):
     mongo = await getMongo()
     if mongo is None:
@@ -558,7 +560,7 @@ async def add_attribute(
 
 
 @router.delete("/reports/{report_id}/attribute-by-name")
-async def delete_attribute_by_name(report_id: str, payload: AttributeDeleteByName):
+async def delete_attribute_by_name(report_id: str, payload: AttributeDeleteByName, current_user: dict = Depends(get_current_user)):
     mongo = await getMongo()
     if mongo is None:
         raise HTTPException(status_code=500, detail="Database not connected")
@@ -595,49 +597,184 @@ async def delete_attribute_by_name(report_id: str, payload: AttributeDeleteByNam
         "deleted_test_name": payload.name
     }
 
+def _fuzzy_match(search_term: str, test_name: str) -> bool:
+    """Conservative fuzzy matching function for biomarker names."""
+    import re
+    
+    # Handle exact match first (case insensitive)
+    if search_term.lower().strip() == test_name.lower().strip():
+        return True
+    
+    # Remove common units and normalize
+    search_clean = re.sub(r'(/dL|/uL|/L|mg/dl|mmol/l|mm/hg|%|mmol/l)', '', search_term, flags=re.IGNORECASE).strip()
+    test_clean = re.sub(r'(/dL|/uL|/L|mg/dl|mmol/l|mm/hg|%|mmol/l)', '', test_name, flags=re.IGNORECASE).strip()
+    
+    # Remove content in parentheses
+    search_clean = re.sub(r'\([^)]*\)', '', search_clean).strip()
+    test_clean = re.sub(r'\([^)]*\)', '', test_clean).strip()
+    
+    # Common abbreviations mapping
+    abbreviations = {
+        'rbc': 'red blood cell',
+        'wbc': 'white blood cell', 
+        'hgb': 'hemoglobin',
+        'hct': 'hematocrit',
+        'mcv': 'mean corpuscular volume',
+        'mch': 'mean corpuscular hemoglobin',
+        'mchc': 'mean corpuscular hemoglobin concentration',
+        'plt': 'platelet',
+        'rdw': 'red cell distribution width',
+        'mpv': 'mean platelet volume',
+        'neut': 'neutrophil',
+        'lymp': 'lymphocyte',
+        'mono': 'monocyte',
+        'eo': 'eosinophil',
+        'baso': 'basophil'
+    }
+    
+    # Expand abbreviations in both terms
+    for abbr, full in abbreviations.items():
+        search_clean = search_clean.replace(abbr, full)
+        test_clean = test_clean.replace(abbr, full)
+    
+    # Split into words and filter out common filler words
+    filler_words = {'count', 'cell', 'cells', 'blood', 'corpuscular', 'mean', 'distribution', 'width'}
+    search_words = [w.lower() for w in search_clean.split() if len(w) > 1 and w.lower() not in filler_words]
+    test_words = [w.lower() for w in test_clean.split() if len(w) > 1 and w.lower() not in filler_words]
+    
+    # If we have meaningful words to compare
+    if search_words and test_words:
+        # Check for partial matches - one term contained in the other
+        search_joined = ' '.join(search_words)
+        test_joined = ' '.join(test_words)
+        
+        if search_joined in test_joined or test_joined in search_joined:
+            return True
+        
+        # Count common meaningful words
+        common_words = set(search_words) & set(test_words)
+        
+        # More conservative matching:
+        # - For single word searches, need exact match on that word
+        if len(search_words) == 1:
+            return len(common_words) == 1
+        # - For 2-3 word searches, need at least 50% match
+        elif len(search_words) <= 3:
+            return len(common_words) >= 1 and (len(common_words) / len(search_words)) >= 0.5
+        # - For longer searches, need at least 60% match or 2+ words
+        else:
+            return (len(common_words) / len(search_words)) >= 0.6 or len(common_words) >= 2
+    
+    return False
+
+
 @router.get("/draw_graph/{patient_id}/{attribute}")
-async def draw_graph_data(patient_id: str, attribute: str):
+async def draw_graph_data(patient_id: str, attribute: str, current_user: dict = Depends(get_current_user)):
     """
     Extract specific attribute values from all patient reports for graphing
     """
     try:
+        # Input validation
+        if not patient_id or not patient_id.strip():
+            raise HTTPException(status_code=400, detail="Patient ID cannot be empty")
+        
+        if not attribute or not attribute.strip():
+            raise HTTPException(status_code=400, detail="Attribute cannot be empty")
+        
         mongo = await getMongo()
         if mongo is None:
             raise HTTPException(status_code=500, detail="Database not connected")
 
-        # Fetch reports
-        patient_reports = await mongo.find_many(
-            "Reports",
-            {"Patient_id": patient_id},
-            limit=100
-        )
+        # Fetch reports with error handling
+        try:
+            patient_reports = await mongo.find_many(
+                "Reports",
+                {"Patient_id": patient_id},
+                limit=100
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error fetching patient reports: {str(e)}")
+
+        if not patient_reports:
+            return {
+                "patient_id": patient_id,
+                "attribute": attribute,
+                "data_points": 0,
+                "values": [],
+                "message": "No reports found for this patient"
+            }
 
         values = []
 
         for report in patient_reports:
-            attributes = report.get("Attributes", [])
-            timestamp = report.get("Processed_at")
+            try:
+                attributes = report.get("Attributes", {})
+                timestamp = report.get("Processed_at")
 
-            for test  in attributes:
-                test_dict = attributes[test]
-                if test_dict.get("name") == attribute:
+                # Skip if no attributes or timestamp
+                if not attributes or not timestamp:
+                    continue
+
+                # Smart matching for attribute - case insensitive and partial match
+                found_match = False
+                matched_name = None
+                test_dict = None
+                
+                for test_key, test_data in attributes.items():
+                    if not isinstance(test_data, dict):
+                        continue
+                        
+                    test_name = test_data.get("name", "")
+                    if not test_name:
+                        continue
                     
+                    # Normalize both names for comparison
+                    normalized_search = attribute.lower().strip()
+                    normalized_test = test_name.lower().strip()
+                    
+                    # Exact match
+                    if normalized_search == normalized_test:
+                        found_match = True
+                        matched_name = test_name
+                        test_dict = test_data
+                        break
+                    # Partial match - if search term is contained in test name
+                    elif normalized_search in normalized_test or normalized_test in normalized_search:
+                        found_match = True
+                        matched_name = test_name
+                        test_dict = test_data
+                        break
+                    # Fuzzy match - check if major words match
+                    elif _fuzzy_match(normalized_search, normalized_test):
+                        found_match = True
+                        matched_name = test_name
+                        test_dict = test_data
+                        break
+                
+                if found_match and test_dict:
                     raw_value = test_dict.get("value")
                     remark = test_dict.get("remark")
 
                     # Try to extract number (optional)
                     value = raw_value
                     try:
-                        value = float(str(raw_value).split()[0])
-                    except Exception:
-                        pass
+                        if raw_value is not None and str(raw_value).strip():
+                            value = float(str(raw_value).split()[0])
+                    except (ValueError, TypeError, AttributeError):
+                        # Keep original value if conversion fails
+                        value = raw_value
 
                     values.append({
                         "value": value,
                         "timestamp": timestamp,
-                        "remark": remark
+                        "remark": remark,
+                        "matched_name": matched_name  # Return the actual matched name
                     })
-                    break
+
+            except Exception as e:
+                # Log error for this report but continue processing others
+                print(f"Error processing report {report.get('Report_id', 'unknown')}: {e}")
+                continue
 
         return {
             "patient_id": patient_id,
@@ -657,7 +794,7 @@ async def draw_graph_data(patient_id: str, attribute: str):
 
 
 @router.delete("/reports/{report_id}")
-async def delete_report(report_id: str):
+async def delete_report(report_id: str, current_user: dict = Depends(get_current_user)):
     """
     Delete a report
     """
@@ -680,7 +817,7 @@ async def delete_report(report_id: str):
 
 
 @router.get("/reports")
-async def list_reports():
+async def list_reports(current_user: dict = Depends(get_current_user)):
     """
     List all reports (with pagination)
     """

@@ -4,7 +4,7 @@ import json
 from typing import Any, Dict, List, Optional
 import os
 import asyncio
-import google.generativeai as genai
+import google.genai as genai
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -31,7 +31,7 @@ class LLMReportAgent:
         if not api_key:
             raise ValueError("GEMINI_API_KEY environment variable not set. Please add it to your .env file")
 
-        import google.generativeai as genai
+        import google.genai as genai
         genai.configure(api_key=api_key)
         self.model_name = model_name
         self.temperature = temperature
@@ -253,42 +253,6 @@ CSV Output:
         except Exception as e:
             print(f"Error extracting CSV from text: {e}")
             return None
-
-    def extract_csv_from_text(self, text: str) -> Optional[list]:
-        """
-        Extract structured CSV data from OCR text using LLM
-        """
-        try:
-            import csv
-            import io
-            
-            prompt = f"""
-Extract medical test results from the following OCR text and return as CSV data.
-
-The text contains medical test results with columns for test name, value, unit, and reference range.
-
-Requirements:
-- Extract ONLY actual test results with numerical values
-- Ignore headers, footers, and non-test data
-- Return CSV format with exactly these columns: test_name,value,unit,range
-- Values should include numbers (e.g., "110", "12.5", "82")
-- Units should be standardized (e.g., "mg/dL", "g/dL", "fL", "mmol/L")
-- Reference ranges should preserve the format shown in text
-- Return ONLY the CSV data, no explanations or additional text
-
-OCR Text:
-{text}
-
-CSV Output:
-"""
-            
-            # Use synchronous call since this is a utility method
-            response = self.model.generate_content(prompt)
-            csv_text = response.text if hasattr(response, 'text') else str(response)
-            
-            # Parse CSV response
-            if not csv_text.strip():
-                return None
             
             # Strip code block formatting if present
             clean_text = csv_text.strip()
@@ -309,13 +273,10 @@ CSV Output:
             if first_row and len(first_row) >= 4:
                 if first_row[0].lower() in ['test_name', 'test', 'name']:
                     # Header detected, skip it
-                    pass
+                    data_rows = list(csv_reader)
                 else:
                     # This is data, include it
-                    data_rows = [first_row]
-                data_rows = list(csv_reader)
-                if first_row[0].lower() not in ['test_name', 'test', 'name']:
-                    data_rows.insert(0, first_row)
+                    data_rows = [first_row] + list(csv_reader)
             else:
                 data_rows = []
             
@@ -340,27 +301,47 @@ CSV Output:
 
     async def generate_actionable_suggestions(self, meta_input: dict):
         prompt = f"""
-        You are a health AI assistant.
+            You are a health AI assistant.
 
-        You are given {meta_input.get("report_count")} recent medical reports
-        with their AI analyses.
+            You are given {meta_input.get("report_count")} recent medical reports
+            with their AI analyses (some analyses may be missing).
 
-        Your tasks:
-            - If only 1 report is available, base suggestions primarily on it
-            - If multiple reports exist, detect trends
-            - If more than 1 report, prioritize the most recent
-            - Generate 4-6 actionable suggestions
-            - Keep them concise and practical
+            Rules:
+            - If only 1 report exists → base suggestions on it
+            - If more than 1 report → detect trends
+            - If more than 5 reports were uploaded overall → only latest 5 are included
+            - Always prioritize the most recent report
+            - Generate 4-6 concise, practical actionable suggestions
             - Avoid repetition
 
-        Data:
-        {meta_input}
+            Data:
+            {json.dumps(meta_input, indent=2)}
 
-        Return JSON:
-        {{"actionable_suggestions": [string]}}
+            Return ONLY valid JSON:
+            {{"actionable_suggestions": [string]}}
         """
-        response = self.model.generate_content(prompt)
-        return self._safe_parse(response)
+
+        response = await asyncio.to_thread(
+            self.model.generate_content,
+            prompt
+        )
+
+        text = response.text if hasattr(response, "text") else str(response)
+
+        try:
+            parsed = json.loads(text)
+            return parsed
+        except Exception:
+            import re
+            match = re.search(r"\{[\s\S]*\}", text)
+            if match:
+                try:
+                    return json.loads(match.group(0))
+                except Exception:
+                    pass
+
+        return {"actionable_suggestions": []}
+
 
 
 if __name__ == "__main__":

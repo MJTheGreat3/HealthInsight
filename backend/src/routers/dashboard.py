@@ -12,18 +12,12 @@ async def get_actionable_suggestions(current_user=Depends(get_current_user)):
     mongo = await getMongo()
     user_id = current_user["uid"]
 
-    # Fetch Up TO last 5 reports (not exactly 5)
     reports = await mongo.find_many(
         "Reports",
-        {"patient_id": user_id}
+        {"patient_id": user_id},
+        sort=[("time", -1)],
+        limit=5
     )
-
-    # Sort in Python (newest first)
-    reports = sorted(
-        reports,
-        key=lambda r: r.get("time", ""),
-        reverse=True
-    )[:5]
 
 
     # Case: No reports at all
@@ -54,14 +48,12 @@ async def get_actionable_suggestions(current_user=Depends(get_current_user)):
 
     for r in reports:  # already sorted newest → oldest
         llm = llm_map.get(r["_id"])
-        if not llm:
-            continue
-
         meta_input["reports"].append({
             "report_id": str(r["_id"]),
             "time": r.get("time"),
-            "analysis": llm.get("output")
+            "analysis": llm.get("output") if llm else None
         })
+
 
     meta_input["report_count"] = len(meta_input["reports"])
 

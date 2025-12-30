@@ -151,109 +151,131 @@ class FileHandler:
 
     def extract_csv_with_ocr(self, input_file_path: str, output_file_path: str) -> Optional[dict]:
         """
-        Extract data from PDF using OCR and LLM-based CSV extraction
+        Extract data from PDF using fast OCR logic and LLM-based CSV extraction.
+        Integrates PyMuPDF for fast text extraction with optimized OCR fallback.
         """
         try:
-            import subprocess
-            import os
+            # Import the fast OCR module
+            from src.utils.fast_ocr import FastOCR
             
-            # Generate paths for OCR processing
-            base_name = os.path.splitext(input_file_path)[0]
-            ocr_pdf_path = f"{base_name}_ocr.pdf"
-            text_file_path = f"{base_name}_text.txt"
+            # Step 1: Extract text using fast OCR with fallback
+            print(f"Extracting text from {input_file_path} using fast OCR")
+            ocr_processor = FastOCR()
+            extraction_result = ocr_processor.extract_text_with_fallback(input_file_path)
             
-            try:
-                # Step 1: Apply OCR to the PDF
-                print(f"Applying OCR to {input_file_path}")
-                ocr_result = subprocess.run([
-                    "ocrmypdf", 
-                    "--deskew",
-                    "--clean",
-                    "--skip-text",  # Don't OCR text that's already present
-                    input_file_path, 
-                    ocr_pdf_path
-                ], capture_output=True, text=True, timeout=120)
-                
-                if ocr_result.returncode != 0:
-                    print(f"OCR failed: {ocr_result.stderr}")
-                    # Try fallback: use original PDF without OCR
-                    print("Attempting to use original PDF without OCR...")
-                    ocr_pdf_path = input_file_path
-                
-                # Step 2: Extract text from OCR'd PDF
-                print(f"Extracting text from {ocr_pdf_path}")
-                text_result = subprocess.run([
-                    "pdftotext",
-                    "-layout",
-                    "-y", "190",  # Start from y=190 (top of table area)
-                    "-H", "440",  # Height: 630-190 = 440
-                    "-W", "612",  # Width of the page
-                    "-x", "0",   # Start from x=0 (left edge)
-                    ocr_pdf_path,
-                    text_file_path
-                ], capture_output=True, text=True, timeout=60)
-                
-                if text_result.returncode != 0:
-                    print(f"Text extraction failed: {text_result.stderr}")
-                    return None
-                # print(text_result)
-                
-                # Step 3: Read extracted text
-                if not os.path.exists(text_file_path):
-                    print("Text file was not created")
-                    return None
-                
-                with open(text_file_path, 'r', encoding='utf-8') as f:
-                    extracted_text = f.read()
-                
-                if not extracted_text.strip():
-                    print("No text extracted from PDF")
-                    return None
-                print(extracted_text)
-                
-                # Step 4: Use LLM to extract structured CSV data
-                from src.llm_agent import LLMReportAgent
-                agent = LLMReportAgent()
-                csv_data = agent.extract_csv_from_text(extracted_text)
-                
-                if not csv_data:
-                    print("LLM failed to extract CSV data")
-                    return None
-                
-                # Step 5: Save CSV data to output file
-                import csv
-                with open(output_file_path, 'w', newline='', encoding='utf-8') as csvfile:
-                    writer = csv.writer(csvfile)
-                    writer.writerow(['test_name', 'value', 'unit', 'range'])  # Header
-                    writer.writerows(csv_data)
-                
-                return {
-                    "success": True, 
-                    "input": input_file_path, 
-                    "output": output_file_path,
-                    "extracted_text": extracted_text,
-                    "csv_data": csv_data
-                }
-                
-            finally:
-                # Cleanup temporary files (but not original PDF)
-                temp_files = [text_file_path]
-                # Only cleanup OCR file if it's different from original
-                if ocr_pdf_path != input_file_path:
-                    temp_files.append(ocr_pdf_path)
-                    
-                for temp_file in temp_files:
-                    if os.path.exists(temp_file):
-                        try:
-                            os.remove(temp_file)
-                        except Exception as e:
-                            print(f"Failed to cleanup {temp_file}: {e}")
+            if not extraction_result.get("success"):
+                print("Fast OCR extraction failed")
+                return None
+            
+            extracted_text = extraction_result.get("text")
+            method = extraction_result.get("method", "unknown")
+            processing_time = extraction_result.get("processing_time", 0)
+            
+            print(f"✅ Text extraction successful using {method} — {len(extracted_text)} chars — {processing_time:.2f}s")
+            
+            if not extracted_text.strip():
+                print("No text extracted from PDF")
+                return None
+            
+            # Step 2: Preprocess text and extract CSV data with fallback logic
+            processed_text = self._preprocess_ocr_text(extracted_text)
+            
+            # Try LLM extraction first
+            from src.llm_agent import LLMReportAgent
+            agent = LLMReportAgent()
+            csv_data = agent.extract_csv_from_text(processed_text)
+            
+            if not csv_data:
+                print("LLM failed to extract CSV data, trying regex fallback...")
+                csv_data = self._extract_csv_regex_fallback(extracted_text)
+            
+            if not csv_data:
+                print("Both LLM and regex extraction failed")
+                return None
+            
+            # Step 3: Save CSV data to output file
+            import csv
+            with open(output_file_path, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(['test_name', 'value', 'unit', 'range'])  # Header
+                writer.writerows(csv_data)
+            
+            return {
+                "success": True, 
+                "input": input_file_path, 
+                "output": output_file_path,
+                "extracted_text": extracted_text,
+                "csv_data": csv_data,
+                "extraction_method": method,
+                "processing_time": processing_time
+            }
                             
-        except subprocess.TimeoutExpired:
-            print("OCR processing timed out")
+        except Exception as e:
+            print(f"Error in fast OCR extraction: {e}")
+            return None
+
+    def _preprocess_ocr_text(self, text: str) -> str:
+        """Clean and preprocess OCR text before LLM processing."""
+        try:
+            lines = text.split('\n')
+            cleaned_lines = []
+            
+            for line in lines:
+                line = line.strip()
+                # Skip empty lines and common headers/footers
+                if not line:
+                    continue
+                # Skip common non-test content
+                if any(header in line.lower() for header in [
+                    'page', 'report', 'date', 'patient', 'hospital', 'lab', 
+                    'dr.', 'doctor', 'physician', 'printed', 'generated'
+                ]):
+                    continue
+                # Skip lines that are too long (likely headers/footers)
+                if len(line) > 200:
+                    continue
+                # Keep lines with medical test patterns (contain numbers)
+                if any(char.isdigit() for char in line):
+                    cleaned_lines.append(line)
+            
+            return '\n'.join(cleaned_lines)
+        except Exception as e:
+            print(f"Error preprocessing text: {e}")
+            return text  # Return original text if preprocessing fails
+
+    def _extract_csv_regex_fallback(self, text: str) -> Optional[list]:
+        """Regex-based extraction when LLM fails."""
+        try:
+            import re
+            # Enhanced pattern for medical test results - more specific
+            pattern = r'^([A-Z][A-Za-z0-9\s\-\(\)]{3,30})\s+(\d+\.?\d*)\s*([a-zA-Z/\-\%]+)?\s*([0-9\.\-\s]+)?'
+            matches = re.findall(pattern, text, re.MULTILINE)
+            
+            if matches:
+                csv_data = []
+                for match in matches:
+                    test_name = match[0].strip()
+                    value = match[1]
+                    unit = match[2] or ''
+                    range_val = match[3] or ''
+                    
+                    # Filter out non-medical test content
+                    skip_words = ['page', 'patient', 'doctor', 'date', 'laboratory', 'report', 'generated', 'system']
+                    if any(skip_word in test_name.lower() for skip_word in skip_words):
+                        continue
+                    
+                    # Only include valid medical test patterns
+                    if (test_name and value and 
+                        len(test_name) > 2 and 
+                        len(test_name) < 50 and
+                        not test_name.isupper() or 
+                        (test_name.isupper() and len(test_name.split()) <= 3)):
+                        csv_data.append([test_name, value, unit, range_val.strip()])
+                
+                return csv_data if len(csv_data) > 0 else None
             return None
         except Exception as e:
-            print(f"Error in OCR extraction: {e}")
+            print(f"Error in regex fallback extraction: {e}")
             return None
 
     def extract_csv(self, input_file_path: str, output_file_path: str) -> Optional[dict]:

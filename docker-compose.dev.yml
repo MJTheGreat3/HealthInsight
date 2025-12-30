@@ -1,0 +1,21 @@
+# Override for development
+services:
+  backend:
+    volumes:
+      - ./backend/src:/app/src:rw  # Read-write for development
+      - ./backend/firebase-admin.json:/app/firebase-admin.json:ro
+      - ./backend/requirements.txt:/app/requirements.txt:ro
+    environment:
+      - DEBUG=true
+      - RELOAD=true
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile.dev
+    environment:
+      - VITE_API_URL=http://localhost:8000  # For development
+    volumes:
+      - ./Frontend/src:/app/src:rw  # Hot reload support
+    ports:
+      - "3000:5173"

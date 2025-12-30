@@ -26,7 +26,7 @@ google-cloud-core==2.5.0
 google-cloud-firestore==2.22.0
 google-cloud-storage==3.4.1
 google-crc32c==1.8.0
-google-generativeai==0.8.6
+google-genai==0.8.0
 google-resumable-media==2.8.0
 googleapis-common-protos==1.72.0
 grpcio==1.76.0
@@ -69,6 +69,7 @@ pyparsing==3.3.1
 #pypdf==5.9.0
 PyPDF2==3.0.1
 pypdfium2==5.2.0
+PyMuPDF==1.24.12
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 python-multipart==0.0.21

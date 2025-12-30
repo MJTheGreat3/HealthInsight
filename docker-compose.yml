@@ -1,8 +1,86 @@
+
+
+networks:
+  healthinsight-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
+  firebase_creds:
+    driver: local
+  backend_uploads:
+    driver: local
+
 services:
-#Backend
+  mongodb:
+    image: mongo:7.0
+    container_name: healthinsight_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: healthinsight
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - healthinsight-network
+
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: healthinsight_backend
+    container_name: healthinsight_backend
+    restart: unless-stopped
+    environment:
+      - MONGODB_URL=mongodb://admin:password123@mongodb:27017/healthinsight?authSource=admin
+      - PYTHONPATH=/app/src
     env_file:
-      - ./backend/.env
+      - backend/.env
     ports:
       - "8000:8000"
+    volumes:
+      - ./backend/firebase-admin.json:/app/firebase-admin.json:ro
+      - ./backend/src:/app/src
+      - backend_uploads:/app/src/uploads
+    depends_on:
+      - mongodb
+    networks:
+      - healthinsight-network
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    image: healthinsight_frontend
+    container_name: healthinsight_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - healthinsight-network
+
+  # Development helper service (optional)
+  mongo-express:
+    image: mongo-express:latest
+    container_name: healthinsight_mongo_express
+    restart: unless-stopped
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: password123
+      ME_CONFIG_MONGODB_URL: mongodb://admin:password123@mongodb:27017/
+    ports:
+      - "8081:8081"
+    depends_on:
+      - mongodb
+    networks:
+      - healthinsight-network
+    profiles:
+      - dev  # Only start with --profile dev

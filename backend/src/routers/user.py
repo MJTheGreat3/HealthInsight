@@ -262,6 +262,15 @@ async def remove_favorite_marker(
     return {"favorites": favorites}
 
 
+# GET USER FAVORITES
+@router.get("/user/favorites")
+async def get_user_favorites(current_user=Depends(get_current_user)):
+    mongo = await getMongo()
+    user = await mongo.find_one("Users", {"uid": current_user["uid"]})
+    favorites = user.get("Favorites", []) if user else []
+    return {"favorites": favorites}
+
+
 # GET USER BY OBJECT ID
 @router.get("/user/{user_id}")
 async def get_user(user_id: str):

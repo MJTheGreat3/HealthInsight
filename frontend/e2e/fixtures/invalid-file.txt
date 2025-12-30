@@ -1,3 +1,0 @@
-This is not a PDF file.
-It's just a plain text file that should be rejected by the upload system.
-This is used to test error handling in the file upload process.

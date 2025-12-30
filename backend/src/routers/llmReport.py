@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from src.db.mongoWrapper import getMongo
 from typing import Any, Dict, List, Optional
 from bson import ObjectId
@@ -8,19 +8,20 @@ from datetime import datetime
 
 from src.llm_agent import LLMReportAgent
 from src.schemas import ReportModel
+from src.auth.dependencies import get_current_user
 
 router = APIRouter(prefix="/api")
 
 
 @router.get("/LLMReport/{report_id}")
-async def get_report(report_id: str):
+async def get_report(report_id: str, current_user: dict = Depends(get_current_user)):
   mongo = await getMongo()
   report = await mongo.find_one("LLMReports", {"_id": ObjectId(report_id)})
   return json.loads(dumps(report)) 
 
 
 @router.post("/LLMReport")
-async def upload_report(report: ReportModel):
+async def upload_report(report: ReportModel, current_user: dict = Depends(get_current_user)):
   mongo = await getMongo()
 
   patient_id = report.model_dump().get("patient_id")
